@@ -7,7 +7,7 @@ This project enables building workers for [zeebe][zeebe] in Rust.
 The GRPC commands must be wrapped with a nice Rust API. The current API is synchronous. 
 
 - [x] Get topology
-- [ ] List workflows
+- [x] List workflows
 - [ ] Deploy workflows
 - [ ] Create task workers
 - [ ] Parse BPMN documents (another crate?)
@@ -15,7 +15,7 @@ The GRPC commands must be wrapped with a nice Rust API. The current API is synch
 
 ## Deving
 
-Ensure `protoc` is in your path. [Install protobufs here.][protobuf]
+Ensure `protoc` is in your path. [Install protobufs here][protobuf].
 
 ## Attributions
 
