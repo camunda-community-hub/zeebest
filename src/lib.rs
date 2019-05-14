@@ -7,9 +7,9 @@ use crate::gateway_grpc::*;
 //use crate::gateway::*;
 
 //use grpc::ClientStub;
-use grpc::ClientStubExt;
-use crate::gateway::{TopologyResponse, ListWorkflowsResponse, WorkflowMetadata, DeployWorkflowResponse, DeployWorkflowRequest};
-pub use crate::gateway::WorkflowRequestObject;
+use grpc::{ClientStubExt};
+use crate::gateway::{TopologyResponse, ListWorkflowsResponse, WorkflowMetadata, DeployWorkflowResponse, DeployWorkflowRequest, CreateWorkflowInstanceResponse};
+pub use crate::gateway::{WorkflowRequestObject, CreateWorkflowInstanceRequest};
 
 #[derive(Debug, Fail)]
 pub enum Error {
@@ -21,6 +21,8 @@ pub enum Error {
     ListWorkflowsError(grpc::Error),
     #[fail(display = "Deploy Workflow Error")]
     DeployWorkflowError(grpc::Error),
+    #[fail(display = "Create Workflow Instance Error")]
+    CreateWorkflowInstanceError(grpc::Error),
 }
 
 pub struct Client {
@@ -46,7 +48,7 @@ impl Client {
         Ok(topology_response)
     }
 
-    // list the workflows
+    /// list the workflows
     pub fn list_workflows(&self) -> Result<Vec<WorkflowMetadata>, Error> {
         let options = Default::default();
         let list_workflows_request = Default::default();
@@ -56,14 +58,26 @@ impl Client {
         Ok(workflows)
     }
 
-    // deploy a collection of workflows
+    /// deploy a collection of workflows
     pub fn deploy_workflow(&self, workflow_requests: Vec<WorkflowRequestObject>) -> Result<DeployWorkflowResponse, Error> {
         let options = Default::default();
-        let mut deploy_workflow_request: DeployWorkflowRequest = Default::default();
+        let mut deploy_workflow_request = DeployWorkflowRequest::default();
         deploy_workflow_request.set_workflows(protobuf::RepeatedField::from(workflow_requests));
         let grpc_response: grpc::SingleResponse<_> = self.gateway_client.deploy_workflow(options, deploy_workflow_request);
         let deploy_workflow_response: DeployWorkflowResponse = grpc_response.wait_drop_metadata().map_err(|e| Error::DeployWorkflowError(e))?;
         Ok(deploy_workflow_response)
+    }
+
+    /// create a workflow instance of latest version
+    pub fn create_workflow_instance(&self, bpmn_process_id: String, payload: String) -> Result<CreateWorkflowInstanceResponse, Error> {
+        let options = Default::default();
+        let mut request = CreateWorkflowInstanceRequest::default();
+        request.set_version(-1);
+        request.set_bpmnProcessId(bpmn_process_id);
+        request.set_payload(payload);
+        let grpc_response: grpc::SingleResponse<_> = self.gateway_client.create_workflow_instance(options, request);
+        let create_workflow_instance_response: CreateWorkflowInstanceResponse = grpc_response.wait_drop_metadata().map_err(|e| Error::CreateWorkflowInstanceError(e))?;
+        Ok(create_workflow_instance_response)
     }
 }
 

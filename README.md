@@ -8,7 +8,7 @@ The GRPC commands must be wrapped with a nice Rust API. The current API is synch
 
 - [x] Get topology
 - [x] List workflows
-- [ ] Deploy workflows
+- [x] Deploy workflows
 - [ ] Create task workers
 - [ ] Parse BPMN documents (another crate?)
 - [ ] Start workflow instance
