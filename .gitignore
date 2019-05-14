@@ -1,0 +1,8 @@
+/.idea
+/target
+**/*.rs.bk
+Cargo.lock
+
+# generated protobuf code
+src/gateway.rs
+src/gateway_grpc.rs
