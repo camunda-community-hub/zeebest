@@ -8,7 +8,8 @@ use crate::gateway_grpc::*;
 
 //use grpc::ClientStub;
 use grpc::ClientStubExt;
-use crate::gateway::{TopologyResponse, ListWorkflowsResponse, WorkflowMetadata};
+use crate::gateway::{TopologyResponse, ListWorkflowsResponse, WorkflowMetadata, DeployWorkflowResponse, DeployWorkflowRequest};
+pub use crate::gateway::WorkflowRequestObject;
 
 #[derive(Debug, Fail)]
 pub enum Error {
@@ -18,6 +19,8 @@ pub enum Error {
     TopologyError(grpc::Error),
     #[fail(display = "List Workflows Error")]
     ListWorkflowsError(grpc::Error),
+    #[fail(display = "Deploy Workflow Error")]
+    DeployWorkflowError(grpc::Error),
 }
 
 pub struct Client {
@@ -51,6 +54,16 @@ impl Client {
         let list_workflows_response: ListWorkflowsResponse = grpc_response.wait_drop_metadata().map_err(|e| Error::ListWorkflowsError(e))?;
         let workflows: Vec<WorkflowMetadata> = list_workflows_response.workflows.into();
         Ok(workflows)
+    }
+
+    // deploy a collection of workflows
+    pub fn deploy_workflow(&self, workflow_requests: Vec<WorkflowRequestObject>) -> Result<DeployWorkflowResponse, Error> {
+        let options = Default::default();
+        let mut deploy_workflow_request: DeployWorkflowRequest = Default::default();
+        deploy_workflow_request.set_workflows(protobuf::RepeatedField::from(workflow_requests));
+        let grpc_response: grpc::SingleResponse<_> = self.gateway_client.deploy_workflow(options, deploy_workflow_request);
+        let deploy_workflow_response: DeployWorkflowResponse = grpc_response.wait_drop_metadata().map_err(|e| Error::DeployWorkflowError(e))?;
+        Ok(deploy_workflow_response)
     }
 }
 
