@@ -10,8 +10,8 @@ use crate::gateway_grpc::*;
 //use grpc::ClientStub;
 use crate::gateway::{
     ActivateJobsRequest, CompleteJobRequest, CompleteJobResponse, CreateWorkflowInstanceResponse,
-    DeployWorkflowRequest, DeployWorkflowResponse, ListWorkflowsResponse, TopologyResponse,
-    WorkflowMetadata,
+    DeployWorkflowRequest, DeployWorkflowResponse, ListWorkflowsResponse, PublishMessageRequest,
+    TopologyResponse, WorkflowMetadata,
 };
 pub use crate::gateway::{
     ActivateJobsResponse, CreateWorkflowInstanceRequest, WorkflowRequestObject,
@@ -34,6 +34,8 @@ pub enum Error {
     ActivateJobError(grpc::Error),
     #[fail(display = "Complete Job Error")]
     CompleteJobError(grpc::Error),
+    #[fail(display = "Publish Message Error")]
+    PublishMessageError(grpc::Error),
 }
 
 pub struct Client {
@@ -154,6 +156,37 @@ impl Client {
         let result = grpc_response
             .wait_drop_metadata()
             .map_err(|e| Error::CompleteJobError(e));
+        result
+    }
+
+    /*
+    stub.PublishMessage(gateway_pb2.PublishMessageRequest(name =
+        "payment-confirmed", correlationKey = "ab1234", timeToLive = 10000,
+        messageId = "messageId", payload =  '{"total-charged" : 25.95}' )
+    */
+
+    pub fn publish_message(
+        &self,
+        name: String,
+        correlation_key: String,
+        time_to_live: i64,
+        message_id: String,
+        payload: String,
+    ) -> Result<(), Error> {
+        let options = Default::default();
+        let mut publish_message_request = PublishMessageRequest::default();
+        publish_message_request.set_payload(payload);
+        publish_message_request.set_correlationKey(correlation_key);
+        publish_message_request.set_messageId(message_id);
+        publish_message_request.set_name(name);
+        publish_message_request.set_timeToLive(time_to_live);
+        let grpc_response: grpc::SingleResponse<_> = self
+            .gateway_client
+            .publish_message(options, publish_message_request);
+        let result = grpc_response
+            .wait_drop_metadata()
+            .map(|_| ())
+            .map_err(|e| Error::PublishMessageError(e));
         result
     }
 }
