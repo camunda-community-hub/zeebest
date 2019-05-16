@@ -159,12 +159,7 @@ impl Client {
         result
     }
 
-    /*
-    stub.PublishMessage(gateway_pb2.PublishMessageRequest(name =
-        "payment-confirmed", correlationKey = "ab1234", timeToLive = 10000,
-        messageId = "messageId", payload =  '{"total-charged" : 25.95}' )
-    */
-
+    /// Publish a message
     pub fn publish_message(
         &self,
         name: String,
