@@ -5,5 +5,6 @@ fn main() {
         input: &["proto/gateway.proto"],
         rust_protobuf: true,
         ..Default::default()
-    }).expect("protoc-rust-grpc");
+    })
+    .expect("protoc-rust-grpc");
 }
