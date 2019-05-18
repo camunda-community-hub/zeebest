@@ -14,7 +14,7 @@ use crate::gateway::{
     TopologyResponse, WorkflowMetadata,
 };
 pub use crate::gateway::{
-    ActivateJobsResponse, CreateWorkflowInstanceRequest, WorkflowRequestObject,
+    ActivateJobsResponse, ActivatedJob, CreateWorkflowInstanceRequest, WorkflowRequestObject,
 };
 use grpc::ClientStubExt;
 
@@ -121,7 +121,7 @@ impl Client {
         worker: String,
         timeout: i64,
         amount: i32,
-    ) -> Vec<Result<ActivateJobsResponse, Error>> {
+    ) -> Vec<Result<Vec<ActivatedJob>, Error>> {
         let options = Default::default();
         let mut activate_jobs_request = ActivateJobsRequest::default();
         activate_jobs_request.set_amount(amount);
@@ -134,11 +134,15 @@ impl Client {
         let results: Vec<_> = grpc_response
             .wait_drop_metadata()
             .as_mut()
-            .map(|r| r.map_err(|e| Error::ActivateJobError(e)))
+            .map(|r| {
+                r.map(|a| a.jobs.into_vec())
+                    .map_err(|e| Error::ActivateJobError(e))
+            })
             .collect();
         results
     }
 
+    /// complete a job
     pub fn complete_job(
         &self,
         job_key: i64,

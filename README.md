@@ -9,14 +9,14 @@ The GRPC commands must be wrapped with a nice Rust API. The current API is synch
 - [x] Get topology
 - [x] List workflows
 - [x] Deploy workflows
-- [ ] Activate and complete job
-- [ ] Publish message
-- [ ] Create task workers
+- [x] Activate and complete job
+- [x] Publish message
+- [ ] Create task workers API
 - [ ] Parse BPMN documents (another crate?)
-- [ ] Start workflow instance
 - [ ] Support grpc tls
 - [ ] Support any zeebe server (not just local)
 - [ ] Create examples
+- [ ] Futurize 
 
 ## Deving
 
