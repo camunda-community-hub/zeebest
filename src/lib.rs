@@ -1,8 +1,11 @@
 #[macro_use]
 extern crate failure;
+#[macro_use]
+extern crate futures;
 
 pub mod gateway;
 pub mod gateway_grpc;
+pub mod stream;
 
 use crate::gateway_grpc::*;
 //use crate::gateway::*;
@@ -39,7 +42,7 @@ pub enum Error {
 }
 
 pub struct Client {
-    gateway_client: GatewayClient,
+    pub(crate) gateway_client: GatewayClient,
 }
 
 impl Client {
