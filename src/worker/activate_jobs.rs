@@ -1,47 +1,62 @@
-use crate::worker::{JobType, WorkerType};
+use crate::gateway;
+use crate::gateway_grpc::Gateway;
+use crate::worker::{JobConfig, WorkerConfig};
 use futures::{Async, Stream};
 use std::sync::Arc;
-use crate::gateway;
 
+/// A future activates jobs and flattens them to a stream of gateway::ActivatedJob
 pub struct ActivateJobs {
-    worker_type: Arc<WorkerType>
-    job_type: Arc<JobType>,
+    s: Box<Stream<Item = gateway::ActivatedJob, Error = grpc::Error>>,
 }
 
 impl ActivateJobs {
-    pub fn new(job_type: Arc<JobType>, worker_type: Arc<WorkerType>) -> Self {
-        ActivateJobs { job_type }
+    pub fn new(job_config: &JobConfig, worker_config: &WorkerConfig) -> Self {
+        let stream = Self::create_activated_job_stream(job_config, worker_config);
+        ActivateJobs { s: stream }
     }
 
     fn create_activate_jobs_request(
-        &self,
+        job_config: &JobConfig,
+        worker_config: &WorkerConfig,
     ) -> gateway::ActivateJobsRequest {
         let mut activate_jobs_request = gateway::ActivateJobsRequest::default();
         activate_jobs_request.set_amount(10); // TODO: make this configurable
-        activate_jobs_request.set_timeout(1000);
-        activate_jobs_request.set_worker("blah-worker".to_string());
-        activate_jobs_request.set_field_type("blah-worker-type".to_string());
+        activate_jobs_request.set_timeout(job_config.timeout);
+        activate_jobs_request.set_worker(worker_config.name.clone());
+        activate_jobs_request.set_field_type(job_config.job_type.clone());
         activate_jobs_request
     }
 
-    fn create_activate_jobs_stream(
-        &self,
+    fn create_activate_jobs_response_stream(
+        job_config: &JobConfig,
+        worker_config: &WorkerConfig,
     ) -> Box<dyn Stream<Item = gateway::ActivateJobsResponse, Error = grpc::Error>> {
-        let request = self.create_activate_jobs_request(num_available_jobs);
+        let request = Self::create_activate_jobs_request(job_config, worker_config);
         let options = Default::default();
         let grpc_response: grpc::StreamingResponse<_> =
-            self.client.gateway_client.activate_jobs(options, request);
+            worker_config.client.activate_jobs(options, request);
         let grpc_stream = grpc_response.drop_metadata();
         grpc_stream
+    }
+
+    fn create_activated_job_stream(
+        job_config: &JobConfig,
+        worker_config: &WorkerConfig,
+    ) -> Box<dyn Stream<Item = gateway::ActivatedJob, Error = grpc::Error>> {
+        Box::new(
+            Self::create_activate_jobs_response_stream(job_config, worker_config)
+                .map(|r| futures::stream::iter_ok(r.jobs.into_iter()))
+                .flatten(),
+        )
     }
 }
 
 impl Stream for ActivateJobs {
-    type Item = ();
-    type Error = ();
+    type Item = gateway::ActivatedJob;
+    type Error = grpc::Error;
 
     fn poll(&mut self) -> Result<Async<Option<Self::Item>>, Self::Error> {
-        unimplemented!()
+        self.s.poll()
     }
 }
 
