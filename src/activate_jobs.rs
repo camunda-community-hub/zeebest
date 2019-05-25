@@ -2,6 +2,7 @@ use crate::gateway_grpc::Gateway;
 use crate::{gateway, gateway_grpc};
 use futures::{Async, Stream};
 
+#[derive(Clone)]
 pub struct ActivateJobsConfig {
     pub worker: String,
     pub job_type: String,

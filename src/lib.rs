@@ -1,7 +1,5 @@
 #[macro_use]
 extern crate failure;
-#[macro_use]
-extern crate futures;
 
 pub mod activate_jobs;
 pub mod client;

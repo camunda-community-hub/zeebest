@@ -3,62 +3,10 @@ use crate::client::Client;
 use crate::complete_job::CompletedJobData;
 use crate::gateway::ActivatedJob;
 
-use futures::{Async, Future, Stream};
+use futures::{Async, Stream};
 use std::sync::Arc;
-use std::time::Duration;
-use tokio::timer::Interval;
 
-/// A basic usage of the client API for activating jobs and completing them.
-pub fn do_work(poll_period: Duration, activate_jobs_config: ActivateJobsConfig) {
-    let client = Client::new().unwrap();
-    Interval::new_interval(poll_period)
-        .zip(futures::stream::repeat(client))
-        .map(|(_tick, client)| {
-            // spawn stream that will do all of the necessary things
-            // force the stream into a future so it may be spawned
-            let work = client
-                .activate_jobs(&activate_jobs_config)
-                .and_then(|_activated_job| {
-                    // do work
-                    Ok(())
-                })
-                .zip(futures::stream::repeat(client))
-                .and_then(|(_data, client)| {
-                    let completed_job_data = CompletedJobData {
-                        job_key: 1,
-                        payload: None,
-                    };
-                    client.complete_job(completed_job_data)
-                })
-                .for_each(|_| Ok(()))
-                .map_err(|_| ());
-            tokio::spawn(work);
-        });
-}
-
-/// The same application but using the nicer worker API
-pub fn do_work_better(_poll_period: Duration, activate_jobs_config: ActivateJobsConfig) {
-    let client = Client::new().unwrap();
-    let client = Arc::new(client);
-
-    let handler = |_key, _payload| None;
-
-    let worker_config = WorkerConfig {
-        activate_jobs_config,
-        cancel_workflow_on_panic: false,
-    };
-
-    let worker = Worker::new(client, worker_config, handler);
-
-    tokio::run(
-        worker
-            .map(|x| println!("completed job: {:?}", x))
-            .map_err(|e| println!("error! {:?}", e))
-            .collect()
-            .then(|_| Ok(())),
-    );
-}
-
+#[derive(Clone)]
 pub struct WorkerConfig {
     pub activate_jobs_config: ActivateJobsConfig,
     pub cancel_workflow_on_panic: bool,
