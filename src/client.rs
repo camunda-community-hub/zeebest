@@ -186,7 +186,7 @@ impl Client {
 
 #[cfg(test)]
 mod tests {
-    use crate::Client;
+    use crate::client::Client;
 
     #[test]
     fn check_topology() {

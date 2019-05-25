@@ -39,6 +39,7 @@ impl ActivateJobs {
         grpc_stream
     }
 
+    /// flatten the batched up `ActivatedJob`s
     fn create_activated_job_stream(
         job_config: &JobConfig,
         worker_config: &WorkerConfig,

@@ -1,3 +1,42 @@
+use futures::{Async, Future};
+use std::marker::PhantomData;
+
+pub struct Job<F, J>
+where
+    F: Future<Item = (), Error = ()>,
+    J: Fn(i64, String) -> F,
+{
+    f: F,
+    phantom: PhantomData<J>,
+}
+
+impl<F, J> Job<F, J>
+where
+    F: Future<Item = (), Error = ()>,
+    J: Fn(i64, String) -> F,
+{
+    pub fn new(job_key: i64, payload: String, handler: J) -> Self {
+        let f = handler(job_key, payload);
+        Job {
+            f,
+            phantom: PhantomData,
+        }
+    }
+}
+
+impl<F, J> Future for Job<F, J>
+where
+    F: Future<Item = (), Error = ()>,
+    J: Fn(i64, String) -> F,
+{
+    type Item = ();
+    type Error = ();
+
+    fn poll(&mut self) -> Result<Async<Self::Item>, Self::Error> {
+        unimplemented!()
+    }
+}
+
 //use crate::worker::complete_job::CompleteJob;
 //use crate::Client;
 //use futures::Future;
