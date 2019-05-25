@@ -1,14 +1,14 @@
 use std::time::Duration;
 
-use futures::{Future, IntoFuture, Stream};
+use futures::{Future, Stream};
 
 use crate::activate_jobs::ActivateJobsConfig;
 use crate::client::Client;
-use crate::gateway;
+
 
 use crate::complete_job::CompletedJobData;
-use crate::worker::job::Job;
-use crate::worker::poll::Poll;
+
+
 use tokio::timer::Interval;
 
 pub mod job;
@@ -24,7 +24,7 @@ pub fn do_work(poll_period: Duration, activate_jobs_config: ActivateJobsConfig) 
             // force the stream into a future so it may be spawned
             let work = client
                 .activate_jobs(&activate_jobs_config)
-                .and_then(|activated_job| {
+                .and_then(|_activated_job| {
                     // do work
                     Ok(())
                 })
