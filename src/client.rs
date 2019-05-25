@@ -11,6 +11,7 @@ use crate::gateway::{
     CreateWorkflowInstanceResponse, DeployWorkflowRequest, DeployWorkflowResponse,
     ListWorkflowsResponse, PublishMessageRequest, TopologyResponse, WorkflowMetadata,
 };
+use crate::worker::{Worker, WorkerConfig};
 use grpc::ClientStubExt;
 use std::sync::Arc;
 
@@ -147,6 +148,14 @@ impl Client {
             .map(|_| ())
             .map_err(|e| Error::PublishMessageError(e));
         result
+    }
+
+    /// Get a worker, client must be in an `Arc`
+    pub fn worker<F>(self: Arc<Client>, worker_config: WorkerConfig, f: F) -> Worker
+    where
+        F: Fn(i64, String) -> Option<String> + Send + 'static,
+    {
+        Worker::new(self, worker_config, f)
     }
 }
 

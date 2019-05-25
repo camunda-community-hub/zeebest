@@ -8,8 +8,6 @@ use std::sync::Arc;
 use std::time::Duration;
 use tokio::timer::Interval;
 
-pub mod job_worker;
-
 /// A basic usage of the client API for activating jobs and completing them.
 pub fn do_work(poll_period: Duration, activate_jobs_config: ActivateJobsConfig) {
     let client = Client::new().unwrap();
@@ -71,7 +69,7 @@ pub struct Worker {
 }
 
 impl Worker {
-    fn new<F>(client: Arc<Client>, worker_config: WorkerConfig, f: F) -> Self
+    pub fn new<F>(client: Arc<Client>, worker_config: WorkerConfig, f: F) -> Self
     where
         F: Fn(i64, String) -> Option<String> + Send + 'static,
     {
