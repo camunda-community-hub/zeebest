@@ -47,7 +47,7 @@ impl ActivateJobs {
         jobs_config: &ActivateJobsConfig,
     ) -> gateway::ActivateJobsRequest {
         let mut activate_jobs_request = gateway::ActivateJobsRequest::default();
-        activate_jobs_request.set_amount(10); // TODO: make this configurable
+        activate_jobs_request.set_amount(jobs_config.amount); // TODO: make this configurable
         activate_jobs_request.set_timeout(jobs_config.timeout);
         activate_jobs_request.set_worker(jobs_config.worker.clone());
         activate_jobs_request.set_field_type(jobs_config.job_type.clone());
