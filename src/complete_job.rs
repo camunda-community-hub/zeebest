@@ -3,13 +3,13 @@ use crate::{gateway, gateway_grpc};
 use futures::{Async, Future};
 
 pub struct CompletedJobData {
-    job_key: i64,
-    payload: Option<String>,
+    pub job_key: i64,
+    pub payload: Option<String>,
 }
 
 /// A future representing the complete job rpc
 pub struct CompleteJob {
-    f: Box<Future<Item = (), Error = grpc::Error>>,
+    f: Box<Future<Item = (), Error = grpc::Error> + Send>,
 }
 
 impl CompleteJob {

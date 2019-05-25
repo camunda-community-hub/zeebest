@@ -11,7 +11,7 @@ pub struct ActivateJobsConfig {
 
 /// A future activates jobs and flattens them to a stream of gateway::ActivatedJob
 pub struct ActivateJobs {
-    s: Box<Stream<Item = gateway::ActivatedJob, Error = grpc::Error>>,
+    s: Box<Stream<Item = gateway::ActivatedJob, Error = grpc::Error> + Send>,
 }
 
 impl ActivateJobs {
@@ -24,7 +24,7 @@ impl ActivateJobs {
     fn create_activated_job_stream(
         client: &gateway_grpc::GatewayClient,
         jobs_config: &ActivateJobsConfig,
-    ) -> Box<dyn Stream<Item = gateway::ActivatedJob, Error = grpc::Error>> {
+    ) -> Box<dyn Stream<Item = gateway::ActivatedJob, Error = grpc::Error> + Send> {
         Box::new(
             Self::create_activate_jobs_response_stream(client, jobs_config)
                 .map(|r| futures::stream::iter_ok(r.jobs.into_iter()))
@@ -35,7 +35,7 @@ impl ActivateJobs {
     fn create_activate_jobs_response_stream(
         client: &gateway_grpc::GatewayClient,
         jobs_config: &ActivateJobsConfig,
-    ) -> Box<dyn Stream<Item = gateway::ActivateJobsResponse, Error = grpc::Error>> {
+    ) -> Box<dyn Stream<Item = gateway::ActivateJobsResponse, Error = grpc::Error> + Send> {
         let request = Self::create_activate_jobs_request(jobs_config);
         let options = Default::default();
         let grpc_response: grpc::StreamingResponse<_> = client.activate_jobs(options, request);

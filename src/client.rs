@@ -4,15 +4,15 @@ use crate::gateway_grpc::*;
 //use grpc::ClientStub;
 use crate::activate_jobs::{ActivateJobs, ActivateJobsConfig};
 use crate::complete_job::{CompleteJob, CompletedJobData};
-use crate::gateway::{
-    CreateWorkflowInstanceResponse,
-    DeployWorkflowRequest, DeployWorkflowResponse, ListWorkflowsResponse, PublishMessageRequest,
-    TopologyResponse, WorkflowMetadata,
-};
 pub use crate::gateway::{
     ActivateJobsResponse, ActivatedJob, CreateWorkflowInstanceRequest, WorkflowRequestObject,
 };
+use crate::gateway::{
+    CreateWorkflowInstanceResponse, DeployWorkflowRequest, DeployWorkflowResponse,
+    ListWorkflowsResponse, PublishMessageRequest, TopologyResponse, WorkflowMetadata,
+};
 use grpc::ClientStubExt;
+use std::sync::Arc;
 
 #[derive(Debug, Fail)]
 pub enum Error {
@@ -34,15 +34,18 @@ pub enum Error {
     PublishMessageError(grpc::Error),
 }
 
+#[derive(Clone)]
 pub struct Client {
-    pub(crate) gateway_client: GatewayClient,
+    pub(crate) gateway_client: Arc<GatewayClient>,
 }
 
 impl Client {
     pub fn new() -> Result<Self, Error> {
         let config = Default::default();
-        let gateway_client = GatewayClient::new_plain("127.0.0.1", 26500, config)
-            .map_err(|e| Error::GatewayError(e))?;
+        let gateway_client = Arc::new(
+            GatewayClient::new_plain("127.0.0.1", 26500, config)
+                .map_err(|e| Error::GatewayError(e))?,
+        );
         Ok(Self { gateway_client })
     }
 
