@@ -1,8 +1,8 @@
 use crate::activate_jobs::ActivateJobsConfig;
 use crate::client::Client;
-use crate::complete_job::{CompleteJob, CompletedJobData};
+use crate::complete_job::CompletedJobData;
 use crate::gateway::ActivatedJob;
-use futures::stream::AndThen;
+
 use futures::{Async, Future, Stream};
 use std::sync::Arc;
 use std::time::Duration;
@@ -25,7 +25,7 @@ pub fn do_work(poll_period: Duration, activate_jobs_config: ActivateJobsConfig) 
                     Ok(())
                 })
                 .zip(futures::stream::repeat(client))
-                .and_then(|(data, client)| {
+                .and_then(|(_data, client)| {
                     let completed_job_data = CompletedJobData {
                         job_key: 1,
                         payload: None,
@@ -39,11 +39,11 @@ pub fn do_work(poll_period: Duration, activate_jobs_config: ActivateJobsConfig) 
 }
 
 /// The same application but using the nicer worker API
-pub fn do_work_better(poll_period: Duration, activate_jobs_config: ActivateJobsConfig) {
+pub fn do_work_better(_poll_period: Duration, activate_jobs_config: ActivateJobsConfig) {
     let client = Client::new().unwrap();
     let client = Arc::new(client);
 
-    let handler = |key, payload| None;
+    let handler = |_key, _payload| None;
 
     let worker_config = WorkerConfig {
         activate_jobs_config,
