@@ -1,9 +1,9 @@
 use futures::IntoFuture;
 
 pub struct JobWorker<F, H>
-    where
-        F: IntoFuture<Item = Option<String>, Error = ()>,
-        H: Fn(i64, String) -> F,
+where
+    F: IntoFuture<Item = Option<String>, Error = ()>,
+    H: Fn(i64, String) -> F,
 {
     name: String,
     job_type: String,
@@ -12,9 +12,9 @@ pub struct JobWorker<F, H>
 }
 
 impl<F, H> JobWorker<F, H>
-    where
-        F: IntoFuture<Item = Option<String>, Error = ()>,
-        H: Fn(i64, String) -> F,
+where
+    F: IntoFuture<Item = Option<String>, Error = ()>,
+    H: Fn(i64, String) -> F,
 {
     pub fn new(name: String, job_type: String, handler: H) -> Self {
         JobWorker {

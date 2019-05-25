@@ -2,6 +2,8 @@ use crate::gateway_grpc::*;
 //use crate::gateway::*;
 
 //use grpc::ClientStub;
+use crate::activate_jobs::{ActivateJobs, ActivateJobsConfig};
+use crate::complete_job::{CompleteJob, CompletedJobData};
 use crate::gateway::{
     ActivateJobsRequest, CompleteJobRequest, CompleteJobResponse, CreateWorkflowInstanceResponse,
     DeployWorkflowRequest, DeployWorkflowResponse, ListWorkflowsResponse, PublishMessageRequest,
@@ -11,8 +13,6 @@ pub use crate::gateway::{
     ActivateJobsResponse, ActivatedJob, CreateWorkflowInstanceRequest, WorkflowRequestObject,
 };
 use grpc::ClientStubExt;
-use crate::worker::activate_jobs::ActivateJobs;
-use crate::worker::JobsConfig;
 
 #[derive(Debug, Fail)]
 pub enum Error {
@@ -111,32 +111,13 @@ impl Client {
     }
 
     /// activate jobs
-    pub fn activate_jobs(
-        &self,
-        jobs_config: &JobsConfig,
-    ) -> ActivateJobs {
+    pub fn activate_jobs(&self, jobs_config: &ActivateJobsConfig) -> ActivateJobs {
         ActivateJobs::new(&self.gateway_client, &jobs_config)
     }
 
     /// complete a job
-    pub fn complete_job(
-        &self,
-        job_key: i64,
-        payload: Option<String>,
-    ) -> Result<CompleteJobResponse, Error> {
-        let options = Default::default();
-        let mut complete_job_request = CompleteJobRequest::default();
-        complete_job_request.set_jobKey(job_key);
-        if let Some(payload) = payload {
-            complete_job_request.set_payload(payload);
-        }
-        let grpc_response: grpc::SingleResponse<_> = self
-            .gateway_client
-            .complete_job(options, complete_job_request);
-        let result = grpc_response
-            .wait_drop_metadata()
-            .map_err(|e| Error::CompleteJobError(e));
-        result
+    pub fn complete_job(&self, completed_job_data: CompletedJobData) -> CompleteJob {
+        CompleteJob::new(&self.gateway_client, completed_job_data)
     }
 
     /// Publish a message
