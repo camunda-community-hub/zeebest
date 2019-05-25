@@ -11,10 +11,12 @@ pub use crate::gateway::{
     ActivateJobsResponse, ActivatedJob, CreateWorkflowInstanceRequest, WorkflowRequestObject,
 };
 use grpc::ClientStubExt;
+use crate::worker::activate_jobs::ActivateJobs;
+use crate::worker::JobsConfig;
 
 #[derive(Debug, Fail)]
 pub enum Error {
-    #[fail(display = "Gateway Error")]
+    #[fail(display = "Gateway Error. {:?}", _0)]
     GatewayError(grpc::Error),
     #[fail(display = "Topology Error")]
     TopologyError(grpc::Error),
@@ -108,32 +110,12 @@ impl Client {
         Ok(create_workflow_instance_response)
     }
 
-    /// activate a job
-    pub fn activate_job(
+    /// activate jobs
+    pub fn activate_jobs(
         &self,
-        job_type: String,
-        worker: String,
-        timeout: i64,
-        amount: i32,
-    ) -> Vec<Result<Vec<ActivatedJob>, Error>> {
-        let options = Default::default();
-        let mut activate_jobs_request = ActivateJobsRequest::default();
-        activate_jobs_request.set_amount(amount);
-        activate_jobs_request.set_timeout(timeout);
-        activate_jobs_request.set_worker(worker);
-        activate_jobs_request.set_field_type(job_type);
-        let grpc_response: grpc::StreamingResponse<_> = self
-            .gateway_client
-            .activate_jobs(options, activate_jobs_request);
-        let results: Vec<_> = grpc_response
-            .wait_drop_metadata()
-            .as_mut()
-            .map(|r| {
-                r.map(|a| a.jobs.into_vec())
-                    .map_err(|e| Error::ActivateJobError(e))
-            })
-            .collect();
-        results
+        jobs_config: &JobsConfig,
+    ) -> ActivateJobs {
+        ActivateJobs::new(&self.gateway_client, &jobs_config)
     }
 
     /// complete a job

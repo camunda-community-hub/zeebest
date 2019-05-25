@@ -1,85 +1,49 @@
-pub mod activate_jobs;
-pub mod complete_job;
-pub mod job;
-pub mod poll;
+use std::time::Duration;
 
+use futures::{Future, IntoFuture, Stream};
 
 use crate::gateway;
 use crate::gateway_grpc;
 use crate::worker::activate_jobs::ActivateJobs;
 use crate::worker::job::Job;
-use crate::worker::poll::{Poll};
-use futures::{Future, IntoFuture, Stream};
+use crate::worker::poll::Poll;
+use crate::client::Client;
 
-use std::time::{Duration};
+pub mod activate_jobs;
+pub mod complete_job;
+pub mod job;
+pub mod job_worker;
+pub mod poll;
 
-
-pub struct JobConfig {
-    job_type: String,
-    timeout: i64,
+pub struct JobsConfig {
+    pub worker: String,
+    pub job_type: String,
+    pub timeout: i64,
+    pub amount: i32,
 }
 
-pub struct WorkerConfig {
-    name: String,
-    poll_period: Duration,
-    client: gateway_grpc::GatewayClient,
-}
+pub fn do_work(poll_period: Duration, worker_config: JobsConfig) {
+    let worker_client = Client::new().unwrap();
 
-pub struct JobWorker<F, H>
-where
-    F: IntoFuture<Item = Option<String>, Error = ()>,
-    H: Fn(i64, String) -> F,
-{
-    name: String,
-    job_type: String,
-    max_running_jobs: Option<usize>,
-    handler: H,
-}
+    Poll::new(poll_period).map(|_tick| {
 
-impl<F, H> JobWorker<F, H>
-where
-    F: IntoFuture<Item = Option<String>, Error = ()>,
-    H: Fn(i64, String) -> F,
-{
-    pub fn new(name: String, job_type: String, handler: H) -> Self {
-        JobWorker {
-            name,
-            job_type,
-            max_running_jobs: None,
-            handler,
-        }
-    }
-}
-
-pub fn do_work(job_config: JobConfig, worker_config: WorkerConfig) {
-    Poll::new(worker_config.poll_period).map(|_tick| {
         // spawn stream that will do all of the necessary things
         // force the stream into a future so it may be spawned
-        let activated_jobs = ActivateJobs::new(&job_config, &worker_config);
+        let activated_jobs = worker_client.activate_jobs(&worker_config);
         let _spawn_jobs = activated_jobs.map_err(|_| ()).and_then(spawn_jobs);
     });
 }
 
-pub fn spawn_jobs(job: gateway::ActivatedJob) -> impl IntoFuture<Item = (), Error = ()> {
-    let job_key = job.key;
-    let payload = job.payload;
+pub fn spawn_jobs(activated_job: gateway::ActivatedJob) -> impl IntoFuture<Item = (), Error = ()> {
+    let job_key = activated_job.key;
+    let payload = activated_job.payload;
+
+
+
     let job = Job::new(job_key, payload, |_, _| futures::future::ok(()));
     tokio::spawn(job)
 }
 
-#[cfg(test)]
-mod test {
-    use crate::worker::JobWorker;
-
-    #[test]
-    fn make_worker() {
-        let worker = JobWorker::new(
-            "foo-worker".to_string(),
-            "payment-process".to_string(),
-            |key, payload| Ok(None),
-        );
-    }
-}
 
 //impl IntoFuture for JobWorker {
 //    type Future = ();
