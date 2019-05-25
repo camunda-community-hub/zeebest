@@ -5,7 +5,7 @@ use futures::{Future, IntoFuture, Stream};
 use crate::activate_jobs::ActivateJobsConfig;
 use crate::client::Client;
 use crate::gateway;
-use crate::gateway_grpc;
+
 use crate::worker::job::Job;
 use crate::worker::poll::Poll;
 

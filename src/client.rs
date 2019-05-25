@@ -5,7 +5,7 @@ use crate::gateway_grpc::*;
 use crate::activate_jobs::{ActivateJobs, ActivateJobsConfig};
 use crate::complete_job::{CompleteJob, CompletedJobData};
 use crate::gateway::{
-    ActivateJobsRequest, CompleteJobRequest, CompleteJobResponse, CreateWorkflowInstanceResponse,
+    CreateWorkflowInstanceResponse,
     DeployWorkflowRequest, DeployWorkflowResponse, ListWorkflowsResponse, PublishMessageRequest,
     TopologyResponse, WorkflowMetadata,
 };
