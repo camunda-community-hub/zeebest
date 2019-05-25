@@ -2,7 +2,7 @@ use crate::gateway;
 use crate::gateway_grpc::Gateway;
 use crate::worker::{JobConfig, WorkerConfig};
 use futures::{Async, Stream};
-use std::sync::Arc;
+
 
 /// A future activates jobs and flattens them to a stream of gateway::ActivatedJob
 pub struct ActivateJobs {

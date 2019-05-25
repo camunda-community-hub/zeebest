@@ -3,16 +3,16 @@ pub mod complete_job;
 pub mod job;
 pub mod poll;
 
-use crate::client::Client;
+
 use crate::gateway;
 use crate::gateway_grpc;
 use crate::worker::activate_jobs::ActivateJobs;
 use crate::worker::job::Job;
-use crate::worker::poll::{Poll, Tick};
+use crate::worker::poll::{Poll};
 use futures::{Future, IntoFuture, Stream};
-use std::sync::{Arc, RwLock};
-use std::time::{Duration, Instant};
-use tokio::timer::Interval;
+
+use std::time::{Duration};
+
 
 pub struct JobConfig {
     job_type: String,
@@ -27,7 +27,7 @@ pub struct WorkerConfig {
 
 pub struct JobWorker<F, H>
 where
-    F: Future<Item = Option<String>, Error = ()>,
+    F: IntoFuture<Item = Option<String>, Error = ()>,
     H: Fn(i64, String) -> F,
 {
     name: String,
@@ -38,7 +38,7 @@ where
 
 impl<F, H> JobWorker<F, H>
 where
-    F: Future<Item = Option<String>, Error = ()>,
+    F: IntoFuture<Item = Option<String>, Error = ()>,
     H: Fn(i64, String) -> F,
 {
     pub fn new(name: String, job_type: String, handler: H) -> Self {
@@ -52,11 +52,11 @@ where
 }
 
 pub fn do_work(job_config: JobConfig, worker_config: WorkerConfig) {
-    Poll::new(worker_config.poll_period).map(|tick| {
+    Poll::new(worker_config.poll_period).map(|_tick| {
         // spawn stream that will do all of the necessary things
         // force the stream into a future so it may be spawned
         let activated_jobs = ActivateJobs::new(&job_config, &worker_config);
-        let spawn_jobs = activated_jobs.map_err(|_| ()).and_then(spawn_jobs);
+        let _spawn_jobs = activated_jobs.map_err(|_| ()).and_then(spawn_jobs);
     });
 }
 
