@@ -9,7 +9,7 @@ pub struct CompletedJobData {
 }
 
 /// Get a future representing the complete job rpc
-pub fn complete_job(
+pub(crate) fn complete_job(
     client: &gateway_grpc::GatewayClient,
     completed_job_data: CompletedJobData,
 ) -> impl Future<Item = CompletedJobData, Error = grpc::Error> + Send {

@@ -16,6 +16,9 @@ use std::sync::Arc;
 use crate::create_workflow_instance::{
     create_workflow_instance_with_no_payload, create_workflow_instance_with_serializable_payload,
 };
+use crate::publish_message::{
+    publish_message_with_no_payload, publish_message_with_serializable_payload,
+};
 use serde::Serialize;
 #[cfg(feature = "timer")]
 use std::time::Duration;
@@ -40,6 +43,8 @@ pub enum Error {
     CompleteJobError(grpc::Error),
     #[fail(display = "Publish Message Error. {:?}", _0)]
     PublishMessageError(grpc::Error),
+    #[fail(display = "Fail Job Error. {:?}", _0)]
+    FailJobError(grpc::Error),
     #[fail(display = "Interval Error. {:?}", _0)]
     IntervalError(tokio::timer::Error),
     #[fail(display = "Job Error. {:?}", _0)]
@@ -188,30 +193,51 @@ impl Client {
         complete_job(&self.gateway_client, completed_job_data)
     }
 
-    /// Publish a message
-    pub fn publish_message(
-        &self,
-        name: String,
-        correlation_key: String,
+    /// Publish a message with a payload
+    pub fn publish_message<
+        'a,
+        S1: Into<String> + 'a,
+        S2: Into<String> + 'a,
+        S3: Into<String> + 'a,
+        J: Serialize + 'a,
+    >(
+        &'a self,
+        name: S1,
+        correlation_key: S2,
         time_to_live: i64,
-        message_id: String,
-        payload: String,
-    ) -> impl Future<Item = (), Error = Error> {
-        let options = Default::default();
-        let mut publish_message_request = PublishMessageRequest::default();
-        publish_message_request.set_payload(payload);
-        publish_message_request.set_correlationKey(correlation_key);
-        publish_message_request.set_messageId(message_id);
-        publish_message_request.set_name(name);
-        publish_message_request.set_timeToLive(time_to_live);
-        let grpc_response: grpc::SingleResponse<_> = self
-            .gateway_client
-            .publish_message(options, publish_message_request);
-        let result = grpc_response
-            .drop_metadata()
-            .map(|_| ())
-            .map_err(|e| Error::PublishMessageError(e));
-        result
+        message_id: S3,
+        payload: J,
+    ) -> impl Future<Item = (), Error = Error> + 'a {
+        publish_message_with_serializable_payload(
+            &self.gateway_client,
+            name,
+            correlation_key,
+            time_to_live,
+            message_id,
+            payload,
+        )
+    }
+
+    /// Publish a message without a payload
+    pub fn publish_message_no_payload<
+        'a,
+        S1: Into<String> + 'a,
+        S2: Into<String> + 'a,
+        S3: Into<String> + 'a,
+    >(
+        &'a self,
+        name: S1,
+        correlation_key: S2,
+        time_to_live: i64,
+        message_id: S3,
+    ) -> impl Future<Item = (), Error = Error> + 'a {
+        publish_message_with_no_payload(
+            &self.gateway_client,
+            name,
+            correlation_key,
+            time_to_live,
+            message_id,
+        )
     }
 
     pub fn activate_and_process_jobs<F, X>(

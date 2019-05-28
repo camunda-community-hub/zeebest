@@ -1,5 +1,5 @@
 use futures::Future;
-use zeebe_client::client::Client;
+use zeebe_client::Client;
 
 fn main() {
     let client = Client::new().unwrap();

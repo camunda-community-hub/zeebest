@@ -3,8 +3,18 @@ extern crate failure;
 
 mod activate_and_process_jobs;
 mod activate_jobs;
-pub mod client;
+mod client;
 mod complete_job;
 mod create_workflow_instance;
-pub(crate) mod gateway;
-pub(crate) mod gateway_grpc;
+mod fail_job;
+mod gateway;
+mod gateway_grpc;
+mod publish_message;
+
+pub use activate_and_process_jobs::{JobError, WorkerConfig};
+pub use activate_jobs::ActivateJobsConfig;
+pub use client::{
+    ActivatedJob, Client, CreateWorkflowInstanceResponse, DeployWorkflowResponse, Error,
+    TopologyResponse, WorkflowMetadata, WorkflowRequestObject, WorkflowVersion,
+};
+pub use complete_job::CompletedJobData;

@@ -5,10 +5,7 @@ use crate::gateway_grpc::Gateway;
 use futures::Future;
 use serde::Serialize;
 
-pub(crate) fn create_workflow_instance_with_optional_string_payload<
-    S: Into<String>,
-    J: Serialize,
->(
+fn create_workflow_instance_with_optional_string_payload<S: Into<String>, J: Serialize>(
     gateway_client: &gateway_grpc::GatewayClient,
     bpmn_process_id: S,
     version: WorkflowVersion,

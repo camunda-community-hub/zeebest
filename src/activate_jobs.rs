@@ -11,7 +11,7 @@ pub struct ActivateJobsConfig {
 }
 
 /// Get a future that activates jobs and flattens them to a stream of gateway::ActivatedJob
-pub fn activate_jobs(
+pub(crate) fn activate_jobs(
     client: &gateway_grpc::GatewayClient,
     jobs_config: &ActivateJobsConfig,
 ) -> impl Stream<Item = gateway::ActivatedJob, Error = grpc::Error> + Send {
