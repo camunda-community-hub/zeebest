@@ -1,10 +1,10 @@
 use std::sync::{Arc, RwLock};
 use zeebe_client::activate_jobs::ActivateJobsConfig;
 use zeebe_client::client::Client;
-use zeebe_client::worker::WorkerConfig;
 
 // requires future and stream
 use futures::{Future, Stream};
+use zeebe_client::activate_and_process_jobs::WorkerConfig;
 
 fn main() {
     // put the client in an Arc because it will be used on different threads
