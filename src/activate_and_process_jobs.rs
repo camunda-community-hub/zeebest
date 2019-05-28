@@ -33,19 +33,34 @@ where
         .map_err(|e| Error::ActivateJobError(e))
         .zip(futures::stream::repeat((f, client.clone())))
         .and_then(|(activated_job, (f, client))| {
-            futures::future::ok(activated_job.key)
+            let client2 = client.clone();
+            futures::future::ok(activated_job.clone())
                 .join((f)(activated_job.clone()))
-                .or_else(move |e| {
-                    let mut retries = activated_job.retries - 1;
-                    if retries <= 0 {
-                        retries = 0;
-                    }
-                    fail_job(client.as_ref(), activated_job.key, retries)
+                .map_err(move |job_error| {
+                    let retries = match job_error {
+                        JobError::Retry { .. } => {
+                            let mut retries = activated_job.retries - 1;
+                            if retries <= 0 {
+                                retries = 0;
+                            }
+                            retries
+                        }
+                        JobError::Fail { .. } => 0,
+                    };
+                    // TODO: put this spawn back into the future control flow so that the result is captured
+                    tokio::spawn(
+                        fail_job(client.as_ref(), activated_job.key, retries).map_err(|_| ()),
+                    );
+                    Error::JobError(job_error)
                 })
-        })
-        .zip(futures::stream::repeat(client))
-        .and_then(|((job_key, payload), client)| {
-            let completed_job_data = CompletedJobData { job_key, payload };
-            complete_job(&client, completed_job_data).map_err(|e| Error::CompleteJobError(e))
+                .join(futures::future::ok(client2))
+                .and_then(|((activated_job, payload), client)| {
+                    let completed_job_data = CompletedJobData {
+                        job_key: activated_job.key,
+                        payload,
+                    };
+                    complete_job(&client, completed_job_data)
+                        .map_err(|e| Error::CompleteJobError(e))
+                })
         })
 }

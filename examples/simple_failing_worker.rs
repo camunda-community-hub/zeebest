@@ -1,8 +1,7 @@
-use std::sync::{Arc, RwLock};
 // requires future and stream
 use futures::{Future, Stream};
 use std::time::Duration;
-use zeebest::{ActivateJobsConfig, Client, WorkerConfig};
+use zeebest::{ActivateJobsConfig, Client, JobError, WorkerConfig};
 
 fn main() {
     // put the client in an Arc because it will be used on different threads
@@ -19,15 +18,11 @@ fn main() {
         cancel_workflow_on_panic: false,
     };
 
-    let data = Arc::new(RwLock::new(10));
-
-    // this is your work function
+    // this is your work function - this one always errors!
     let handler = move |_payload| {
-        // does some work...
-        let _x = 10 * 10;
-        *data.write().unwrap() += 5;
-        // returns no payload
-        Ok(None)
+        Err(JobError::Retry {
+            msg: "There was a problem! Please retry. ".to_string(),
+        })
     };
 
     // poll on an interval, just do the same thing over and over

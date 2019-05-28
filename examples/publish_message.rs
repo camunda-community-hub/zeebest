@@ -2,7 +2,7 @@
 extern crate serde_derive;
 
 use futures::Future;
-use zeebe_client::Client;
+use zeebest::Client;
 
 #[derive(Serialize)]
 struct Payment {

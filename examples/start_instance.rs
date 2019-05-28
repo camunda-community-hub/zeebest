@@ -2,7 +2,7 @@
 extern crate serde_derive;
 
 use futures::Future;
-use zeebe_client::{Client, WorkflowVersion};
+use zeebest::{Client, WorkflowVersion};
 
 #[derive(Serialize)]
 struct PlaceOrder {
