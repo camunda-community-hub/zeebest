@@ -12,8 +12,14 @@ use crate::gateway::{
     ListWorkflowsResponse, PublishMessageRequest, TopologyResponse, WorkflowMetadata,
 };
 //use crate::worker::{Worker, WorkerConfig};
+use crate::gateway_grpc;
+use crate::worker::WorkerConfig;
+use futures::future::Future;
+use futures::{IntoFuture, Stream};
 use grpc::ClientStubExt;
 use std::sync::Arc;
+use std::time::Duration;
+use tokio::timer::Interval;
 
 #[derive(Debug, Fail)]
 pub enum Error {
@@ -33,6 +39,16 @@ pub enum Error {
     CompleteJobError(grpc::Error),
     #[fail(display = "Publish Message Error")]
     PublishMessageError(grpc::Error),
+    #[fail(display = "Interval Error")]
+    IntervalError(tokio::timer::Error),
+    #[fail(display = "Job Error")]
+    JobError(JobError),
+}
+
+#[derive(Debug)]
+pub enum JobError {
+    Retry { msg: String },
+    Fail { msg: String },
 }
 
 #[derive(Clone)]
@@ -150,20 +166,108 @@ impl Client {
         result
     }
 
-    //    /// Get a worker, client must be in an `Arc`
-    //    pub fn worker<F>(self: Arc<Client>, worker_config: WorkerConfig, f: F) -> Worker
-    //    where
-    //        F: Fn(i64, String) -> Option<String> + Send + 'static,
-    //    {
-    //        Worker::new(self, worker_config, f)
-    //    }
-    //
-    //    pub fn worker_interval<F>(self: Arc<Client>, worker_config: WorkerConfig, f: F) -> Worker
-    //        where
-    //            F: Fn(i64, String) -> Option<String> + Send + 'static,
-    //    {
-    //        Worker::new(self, worker_config, f)
-    //    }
+    pub fn activate_and_process_jobs_internal<F, X>(
+        gateway_client: Arc<gateway_grpc::GatewayClient>,
+        worker_config: WorkerConfig,
+        f: Arc<F>,
+    ) -> impl Stream<Item = CompletedJobData, Error = Error>
+    where
+        F: Fn(ActivatedJob) -> X + Send,
+        X: IntoFuture<Item = Option<String>, Error = JobError>,
+    {
+        let client = gateway_client.clone();
+        let client_ref = gateway_client.as_ref();
+        ActivateJobs::new(client_ref, &worker_config.activate_jobs_config)
+            .map_err(|e| Error::ActivateJobError(e))
+            .zip(futures::stream::repeat(f))
+            .and_then(|(y, f)| {
+                futures::future::ok(y.key)
+                    .join((f)(y))
+                    .map_err(|e| Error::JobError(e))
+            })
+            .zip(futures::stream::repeat(client))
+            .and_then(|((job_key, payload), client)| {
+                let completed_job_data = CompletedJobData { job_key, payload };
+                CompleteJob::new(&client, completed_job_data)
+                    .map_err(|e| Error::CompleteJobError(e))
+            })
+    }
+
+    pub fn activate_and_process_jobs<F, X>(
+        &self,
+        worker_config: WorkerConfig,
+        f: F,
+    ) -> impl Stream<Item = CompletedJobData, Error = Error>
+    where
+        F: Fn(ActivatedJob) -> X + Send,
+        X: IntoFuture<Item = Option<String>, Error = JobError>,
+    {
+        let client = self.gateway_client.clone();
+        let f = Arc::new(f);
+        Self::activate_and_process_jobs_internal(client, worker_config, f)
+    }
+
+    pub fn activate_and_process_jobs_interval<F, X>(
+        &self,
+        duration: Duration,
+        worker_config: WorkerConfig,
+        f: F,
+    ) -> impl Stream<Item = CompletedJobData, Error = Error>
+    where
+        F: Fn(ActivatedJob) -> X + Send,
+        X: IntoFuture<Item = Option<String>, Error = JobError>,
+    {
+        let f = Arc::new(f);
+        Interval::new_interval(duration)
+            .map_err(|e| Error::IntervalError(e))
+            .zip(futures::stream::repeat((
+                f,
+                self.gateway_client.clone(),
+                worker_config,
+            )))
+            .map(|(_, (f, gateway_client, worker_config))| {
+                Self::activate_and_process_jobs_internal(gateway_client, worker_config, f)
+            })
+            .flatten()
+    }
+
+    pub fn worker<F, X>(
+        self: Arc<Client>,
+        worker_config: WorkerConfig,
+        f: F,
+    ) -> impl Stream<Item = (), Error = ()>
+    where
+        F: Fn(ActivatedJob) -> X + Send,
+        X: IntoFuture<Item = Option<String>, Error = ()>,
+    {
+        let f = Arc::new(f);
+        // on a stream (an interval)
+        Interval::new_interval(Duration::from_millis(1000))
+            .map(|_| ())
+            .map_err(|_| panic!("timer error"))
+            // do some stuff...
+            .zip(futures::stream::repeat((f, self, worker_config)))
+            .map(|(_, (f, client, worker_config))| {
+                // do some async stuff, e.g. make a grpc call
+                client
+                    .activate_jobs(&worker_config.activate_jobs_config)
+                    .zip(futures::stream::repeat(f))
+                    .map_err(|_| panic!("grpc error"))
+                    .and_then(|(y, f)| {
+                        // call the func for each of these things
+                        futures::future::ok(y.key).join((f)(y))
+                    })
+                    .zip(futures::stream::repeat(client))
+                    .and_then(|((job_key, payload), client)| {
+                        let completed_job_data = CompletedJobData { job_key, payload };
+                        client.complete_job(completed_job_data).map_err(|_| ())
+                    })
+                    .map(|_| println!("did work")) // we will do something with the result
+                    .map_err(|_| println!("got error doing work"))
+            })
+            .flatten()
+            .map_err(|_| println!("got error doing grpc"))
+    }
 }
 
 #[cfg(test)]
