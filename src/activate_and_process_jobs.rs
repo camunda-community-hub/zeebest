@@ -1,5 +1,5 @@
 use crate::activate_jobs::{activate_jobs, ActivateJobsConfig};
-use crate::client::{Error, JobError};
+use crate::client::Error;
 use crate::complete_job::{complete_job, CompletedJobData};
 use crate::{gateway, gateway_grpc};
 use futures::future::Future;
@@ -12,7 +12,13 @@ pub struct WorkerConfig {
     pub cancel_workflow_on_panic: bool,
 }
 
-pub(crate) fn activate_and_process_jobs_internal<F, X>(
+#[derive(Debug)]
+pub enum JobError {
+    Retry { msg: String },
+    Fail { msg: String },
+}
+
+pub(crate) fn activate_and_process_jobs<F, X>(
     gateway_client: Arc<gateway_grpc::GatewayClient>,
     worker_config: WorkerConfig,
     f: Arc<F>,

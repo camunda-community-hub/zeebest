@@ -1,54 +1,45 @@
-use crate::gateway_grpc::*;
-//use crate::gateway::*;
-
-//use grpc::ClientStub;
+use crate::activate_and_process_jobs::{activate_and_process_jobs, JobError, WorkerConfig};
 use crate::activate_jobs::{activate_jobs, ActivateJobsConfig};
 use crate::complete_job::{complete_job, CompletedJobData};
+use crate::gateway;
 pub use crate::gateway::{
-    ActivateJobsResponse, ActivatedJob, CreateWorkflowInstanceRequest, WorkflowRequestObject,
-};
-use crate::gateway::{
+    ActivateJobsResponse, ActivatedJob, CreateWorkflowInstanceRequest,
     CreateWorkflowInstanceResponse, DeployWorkflowRequest, DeployWorkflowResponse,
     ListWorkflowsResponse, PublishMessageRequest, TopologyResponse, WorkflowMetadata,
+    WorkflowRequestObject,
 };
-//use crate::worker::{Worker, WorkerConfig};
-use crate::activate_and_process_jobs::{activate_and_process_jobs_internal, WorkerConfig};
-use crate::gateway;
-use futures::future::Future;
-use futures::{IntoFuture, Stream};
+use crate::gateway_grpc::*;
+use futures::{Future, IntoFuture, Stream};
 use grpc::ClientStubExt;
 use std::sync::Arc;
+
+#[cfg(feature = "timer")]
 use std::time::Duration;
+#[cfg(feature = "timer")]
 use tokio::timer::Interval;
 
 #[derive(Debug, Fail)]
 pub enum Error {
     #[fail(display = "Gateway Error. {:?}", _0)]
     GatewayError(grpc::Error),
-    #[fail(display = "Topology Error")]
+    #[fail(display = "Topology Error. {:?}", _0)]
     TopologyError(grpc::Error),
-    #[fail(display = "List Workflows Error")]
+    #[fail(display = "List Workflows Error. {:?}", _0)]
     ListWorkflowsError(grpc::Error),
-    #[fail(display = "Deploy Workflow Error")]
+    #[fail(display = "Deploy Workflow Error. {:?}", _0)]
     DeployWorkflowError(grpc::Error),
-    #[fail(display = "Create Workflow Instance Error")]
+    #[fail(display = "Create Workflow Instance Error. {:?}", _0)]
     CreateWorkflowInstanceError(grpc::Error),
-    #[fail(display = "Activate Job Error")]
+    #[fail(display = "Activate Job Error. {:?}", _0)]
     ActivateJobError(grpc::Error),
-    #[fail(display = "Complete Job Error")]
+    #[fail(display = "Complete Job Error. {:?}", _0)]
     CompleteJobError(grpc::Error),
-    #[fail(display = "Publish Message Error")]
+    #[fail(display = "Publish Message Error. {:?}", _0)]
     PublishMessageError(grpc::Error),
-    #[fail(display = "Interval Error")]
+    #[fail(display = "Interval Error. {:?}", _0)]
     IntervalError(tokio::timer::Error),
-    #[fail(display = "Job Error")]
+    #[fail(display = "Job Error. {:?}", _0)]
     JobError(JobError),
-}
-
-#[derive(Debug)]
-pub enum JobError {
-    Retry { msg: String },
-    Fail { msg: String },
 }
 
 #[derive(Clone)]
@@ -67,47 +58,43 @@ impl Client {
     }
 
     /// Get the topology. The returned struct is similar to what is printed when running `zbctl status`.
-    pub fn topology(&self) -> Result<TopologyResponse, Error> {
+    pub fn topology(&self) -> impl Future<Item = TopologyResponse, Error = Error> {
         let options = Default::default();
         let topology_request = Default::default();
         let grpc_response: grpc::SingleResponse<_> =
             self.gateway_client.topology(options, topology_request);
-        let topology_response = grpc_response
-            .wait_drop_metadata()
-            .map_err(|e| Error::TopologyError(e))?;
-        Ok(topology_response)
+        grpc_response
+            .drop_metadata()
+            .map_err(|e| Error::TopologyError(e))
     }
 
     /// list the workflows
-    pub fn list_workflows(&self) -> Result<Vec<WorkflowMetadata>, Error> {
+    pub fn list_workflows<I>(&self) -> impl Future<Item = Vec<WorkflowMetadata>, Error = Error> {
         let options = Default::default();
         let list_workflows_request = Default::default();
-        let grpc_response: grpc::SingleResponse<_> = self
+        let grpc_response: grpc::SingleResponse<ListWorkflowsResponse> = self
             .gateway_client
             .list_workflows(options, list_workflows_request);
-        let list_workflows_response: ListWorkflowsResponse = grpc_response
-            .wait_drop_metadata()
-            .map_err(|e| Error::ListWorkflowsError(e))?;
-        let workflows: Vec<WorkflowMetadata> = list_workflows_response.workflows.into();
-        Ok(workflows)
+        grpc_response
+            .drop_metadata()
+            .map(|r| r.workflows.into_vec())
+            .map_err(|e| Error::ListWorkflowsError(e))
     }
 
     /// deploy a collection of workflows
     pub fn deploy_workflow(
         &self,
         workflow_requests: Vec<WorkflowRequestObject>,
-    ) -> Result<DeployWorkflowResponse, Error> {
+    ) -> impl Future<Item = DeployWorkflowResponse, Error = Error> {
         let options = Default::default();
         let mut deploy_workflow_request = DeployWorkflowRequest::default();
         deploy_workflow_request.set_workflows(protobuf::RepeatedField::from(workflow_requests));
         let grpc_response: grpc::SingleResponse<_> = self
             .gateway_client
             .deploy_workflow(options, deploy_workflow_request);
-        let deploy_workflow_response: DeployWorkflowResponse =
-            grpc_response
-                .wait_drop_metadata()
-                .map_err(|e| Error::DeployWorkflowError(e))?;
-        Ok(deploy_workflow_response)
+        grpc_response
+            .drop_metadata()
+            .map_err(|e| Error::DeployWorkflowError(e))
     }
 
     /// create a workflow instance of latest version
@@ -115,7 +102,7 @@ impl Client {
         &self,
         bpmn_process_id: String,
         payload: String,
-    ) -> Result<CreateWorkflowInstanceResponse, Error> {
+    ) -> impl Future<Item = CreateWorkflowInstanceResponse, Error = Error> {
         let options = Default::default();
         let mut request = CreateWorkflowInstanceRequest::default();
         request.set_version(-1);
@@ -124,10 +111,9 @@ impl Client {
         let grpc_response: grpc::SingleResponse<_> = self
             .gateway_client
             .create_workflow_instance(options, request);
-        let create_workflow_instance_response: CreateWorkflowInstanceResponse = grpc_response
-            .wait_drop_metadata()
-            .map_err(|e| Error::CreateWorkflowInstanceError(e))?;
-        Ok(create_workflow_instance_response)
+        grpc_response
+            .drop_metadata()
+            .map_err(|e| Error::CreateWorkflowInstanceError(e))
     }
 
     /// activate jobs
@@ -154,7 +140,7 @@ impl Client {
         time_to_live: i64,
         message_id: String,
         payload: String,
-    ) -> Result<(), Error> {
+    ) -> impl Future<Item = (), Error = Error> {
         let options = Default::default();
         let mut publish_message_request = PublishMessageRequest::default();
         publish_message_request.set_payload(payload);
@@ -166,7 +152,7 @@ impl Client {
             .gateway_client
             .publish_message(options, publish_message_request);
         let result = grpc_response
-            .wait_drop_metadata()
+            .drop_metadata()
             .map(|_| ())
             .map_err(|e| Error::PublishMessageError(e));
         result
@@ -183,9 +169,10 @@ impl Client {
     {
         let client = self.gateway_client.clone();
         let f = Arc::new(f);
-        activate_and_process_jobs_internal(client, worker_config, f)
+        activate_and_process_jobs(client, worker_config, f)
     }
 
+    #[cfg(feature = "timer")]
     pub fn activate_and_process_jobs_interval<F, X>(
         &self,
         duration: Duration,
@@ -205,27 +192,8 @@ impl Client {
                 f,
             )))
             .map(|(_, (gateway_client, worker_config, f))| {
-                activate_and_process_jobs_internal(gateway_client, worker_config, f)
+                activate_and_process_jobs(gateway_client, worker_config, f)
             })
             .flatten()
-    }
-}
-
-#[cfg(test)]
-mod tests {
-    use crate::client::Client;
-
-    #[test]
-    fn check_topology() {
-        let client = Client::new().unwrap();
-        let topology = client.topology().unwrap();
-        println!("{:?}", topology);
-    }
-
-    #[test]
-    fn check_list_workflows() {
-        let client = Client::new().unwrap();
-        let workflows = client.list_workflows().unwrap();
-        println!("{:?}", workflows);
     }
 }

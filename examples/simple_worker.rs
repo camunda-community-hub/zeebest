@@ -4,11 +4,12 @@ use zeebe_client::client::Client;
 
 // requires future and stream
 use futures::{Future, Stream};
+use std::time::Duration;
 use zeebe_client::activate_and_process_jobs::WorkerConfig;
 
 fn main() {
     // put the client in an Arc because it will be used on different threads
-    let client = Arc::new(Client::new().unwrap());
+    let client = Client::new().unwrap();
 
     // define some information about the worker and the what it will do
     let worker_config = WorkerConfig {
@@ -35,7 +36,7 @@ fn main() {
 
     // poll on an interval, just do the same thing over and over
     let future = client
-        .worker(worker_config, handler)
+        .activate_and_process_jobs_interval(Duration::from_millis(1000), worker_config, handler)
         .collect()
         .map_err(|_| ())
         .map(|_| ());
