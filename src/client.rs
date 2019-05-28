@@ -13,6 +13,10 @@ use futures::{Future, IntoFuture, Stream};
 use grpc::ClientStubExt;
 use std::sync::Arc;
 
+use crate::create_workflow_instance::{
+    create_workflow_instance_with_no_payload, create_workflow_instance_with_serializable_payload,
+};
+use serde::Serialize;
 #[cfg(feature = "timer")]
 use std::time::Duration;
 #[cfg(feature = "timer")]
@@ -40,6 +44,22 @@ pub enum Error {
     IntervalError(tokio::timer::Error),
     #[fail(display = "Job Error. {:?}", _0)]
     JobError(JobError),
+    #[fail(display = "Json Payload Serialization Error. {:?}", _0)]
+    JsonError(serde_json::error::Error),
+}
+
+pub enum WorkflowVersion {
+    Latest,
+    Version(i32),
+}
+
+impl Into<i32> for WorkflowVersion {
+    fn into(self) -> i32 {
+        match self {
+            WorkflowVersion::Latest => -1,
+            WorkflowVersion::Version(v) => v,
+        }
+    }
 }
 
 #[derive(Clone)]
@@ -81,8 +101,36 @@ impl Client {
             .map_err(|e| Error::ListWorkflowsError(e))
     }
 
+    /// deploy a single bpmn workflow
+    pub fn deploy_bpmn_workflow<S: Into<String>>(
+        &self,
+        workflow_name: S,
+        workflow_definition: Vec<u8>,
+    ) -> impl Future<Item = DeployWorkflowResponse, Error = Error> {
+        let options = Default::default();
+        let mut workflow_request_object = WorkflowRequestObject::default();
+
+        // check for name ending in bpmn, and add it if missing
+        let mut workflow_name = workflow_name.into();
+        if !workflow_name.ends_with(".bpmn") {
+            workflow_name.push_str(".bpmn");
+        }
+
+        workflow_request_object.set_name(workflow_name.into());
+        workflow_request_object.set_definition(workflow_definition);
+        let mut deploy_workflow_request = DeployWorkflowRequest::default();
+        deploy_workflow_request
+            .set_workflows(protobuf::RepeatedField::from(vec![workflow_request_object]));
+        let grpc_response: grpc::SingleResponse<_> = self
+            .gateway_client
+            .deploy_workflow(options, deploy_workflow_request);
+        grpc_response
+            .drop_metadata()
+            .map_err(|e| Error::DeployWorkflowError(e))
+    }
+
     /// deploy a collection of workflows
-    pub fn deploy_workflow(
+    pub fn deploy_workflows(
         &self,
         workflow_requests: Vec<WorkflowRequestObject>,
     ) -> impl Future<Item = DeployWorkflowResponse, Error = Error> {
@@ -97,23 +145,31 @@ impl Client {
             .map_err(|e| Error::DeployWorkflowError(e))
     }
 
-    /// create a workflow instance of latest version
-    pub fn create_workflow_instance(
-        &self,
-        bpmn_process_id: String,
-        payload: String,
-    ) -> impl Future<Item = CreateWorkflowInstanceResponse, Error = Error> {
-        let options = Default::default();
-        let mut request = CreateWorkflowInstanceRequest::default();
-        request.set_version(-1);
-        request.set_bpmnProcessId(bpmn_process_id);
-        request.set_payload(payload);
-        let grpc_response: grpc::SingleResponse<_> = self
-            .gateway_client
-            .create_workflow_instance(options, request);
-        grpc_response
-            .drop_metadata()
-            .map_err(|e| Error::CreateWorkflowInstanceError(e))
+    /// create a workflow instance with a payload
+    pub fn create_workflow_instance<'a, S: Into<String> + 'a, J: Serialize + 'a>(
+        &'a self,
+        bpmn_process_id: S,
+        version: WorkflowVersion,
+        value: J,
+    ) -> impl Future<Item = CreateWorkflowInstanceResponse, Error = Error> + 'a {
+        create_workflow_instance_with_serializable_payload(
+            self.gateway_client.as_ref(),
+            bpmn_process_id,
+            version,
+            value,
+        )
+    }
+    /// create a workflow instance with no payload
+    pub fn create_workflow_instance_no_payload<'a, S: Into<String> + 'a>(
+        &'a self,
+        bpmn_process_id: S,
+        version: WorkflowVersion,
+    ) -> impl Future<Item = CreateWorkflowInstanceResponse, Error = Error> + 'a {
+        create_workflow_instance_with_no_payload(
+            self.gateway_client.as_ref(),
+            bpmn_process_id,
+            version,
+        )
     }
 
     /// activate jobs

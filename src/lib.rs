@@ -1,9 +1,10 @@
 #[macro_use]
 extern crate failure;
 
-pub mod activate_and_process_jobs;
-pub mod activate_jobs;
+mod activate_and_process_jobs;
+mod activate_jobs;
 pub mod client;
-pub mod complete_job;
-pub mod gateway;
-pub mod gateway_grpc;
+mod complete_job;
+mod create_workflow_instance;
+pub(crate) mod gateway;
+pub(crate) mod gateway_grpc;
