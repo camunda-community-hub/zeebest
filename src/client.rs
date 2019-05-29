@@ -73,10 +73,11 @@ pub struct Client {
 }
 
 impl Client {
-    pub fn new() -> Result<Self, Error> {
+    /// Construct a new `Client` that connects to a broker with `host` and `port`.
+    pub fn new<S: AsRef<str>>(host: S, port: u16) -> Result<Self, Error> {
         let config = Default::default();
         let gateway_client = Arc::new(
-            GatewayClient::new_plain("127.0.0.1", 26500, config)
+            GatewayClient::new_plain(host.as_ref(), port, config)
                 .map_err(|e| Error::GatewayError(e))?,
         );
         Ok(Self { gateway_client })
