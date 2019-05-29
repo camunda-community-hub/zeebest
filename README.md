@@ -21,7 +21,7 @@ to be done. My futures-foo is not fantastic.
   - [ ] Support stop workflow on panic
 - [ ] Parse BPMN documents (another crate?)
 - [ ] Support grpc tls
-- [ ] Support any zeebe server (not just local)
+- [x] Support any zeebe server (not just local)
 - [ ] Create examples
 - [x] Futurize
 - [ ] Explore making the API more ergonomic for synchronous use cases (no futures)

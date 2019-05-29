@@ -5,7 +5,7 @@ use zeebest::{ActivateJobsConfig, Client, JobError, WorkerConfig};
 
 fn main() {
     // put the client in an Arc because it will be used on different threads
-    let client = Client::new().unwrap();
+    let client = Client::new("127.0.0.1", 26500).unwrap();
 
     // define some information about the worker and the what it will do
     let worker_config = WorkerConfig {

@@ -11,7 +11,7 @@ struct Payment {
 }
 
 fn main() {
-    let client = Client::new().unwrap();
+    let client = Client::new("127.0.0.1", 26500).unwrap();
 
     let payment = Payment {
         total_charged: 25.95,

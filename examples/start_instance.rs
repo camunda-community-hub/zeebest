@@ -11,7 +11,7 @@ struct PlaceOrder {
 }
 
 fn main() {
-    let client = Client::new().unwrap();
+    let client = Client::new("127.0.0.1", 26500).unwrap();
 
     let place_order = PlaceOrder { order_id: 10 };
 
