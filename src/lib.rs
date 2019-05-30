@@ -15,6 +15,10 @@ mod gateway_grpc;
 #[cfg(test)]
 mod gateway_mock;
 mod worker;
+#[cfg(feature = "tls")]
+mod tls_certificate;
 
 pub use client::*;
 pub use worker::*;
+#[cfg(feature = "tls")]
+pub use tls_certificate::TlsCertificate;

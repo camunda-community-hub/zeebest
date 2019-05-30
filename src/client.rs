@@ -6,7 +6,13 @@ use std::sync::Arc;
 
 use crate::worker::{JobResult, JobWorker, PanicOption};
 use futures_cpupool::CpuPool;
+#[cfg(feature = "tls")]
+use crate::tls_certificate::TlsCertificate;
+#[cfg(feature = "tls")]
+use grpc::ClientStub;
 use serde::Serialize;
+#[cfg(feature = "tls")]
+use std::net::SocketAddr;
 use std::time::Duration;
 
 #[derive(Debug, Fail)]
@@ -36,6 +42,11 @@ pub enum Error {
     JobError(String),
     #[fail(display = "Json Payload Serialization Error. {:?}", _0)]
     JsonError(serde_json::error::Error),
+    #[cfg(feature = "tls")]
+    #[fail(display = "Tls Certificate Error. {:?}", _0)]
+    TlsCertificateError(tls_api::Error),
+    #[fail(display = "Parse Address Error. {:?}", _0)]
+    ParseAddressError(std::net::AddrParseError),
 }
 
 /// Strongly type the version. `WorkflowVersion::Latest` is translated to `-1`.
@@ -70,6 +81,28 @@ impl Client {
                 gateway_client,
                 thread_pool: None,
             })
+    }
+
+    /// Create a new client that uses TLS to talk to the grpc gateway.
+    #[cfg(feature = "tls")]
+    pub fn new_with_tls<S: AsRef<str>>(
+        host: S,
+        port: u16,
+        tls_certificate: TlsCertificate,
+    ) -> Result<Self, Error> {
+        let config = Default::default();
+        let tls_option = tls_certificate.into_tls_option(host.as_ref().to_owned())?;
+        let socket_addr_string: String = format!("{}:{}", host.as_ref(), port);
+        let socket_addr: SocketAddr = socket_addr_string
+            .parse()
+            .map_err(|e| Error::ParseAddressError(e))?;
+        let grpc_client = grpc::Client::new_expl(&socket_addr, host.as_ref(), tls_option, config)
+            .map_err(|e| Error::GatewayError(e))
+            .map(Arc::new)?;
+        Ok(Self {
+            gateway_client: Arc::new(GatewayClient::with_client(grpc_client)),
+            thread_pool: None,
+        })
     }
 
     /// Get the topology. The returned struct is similar to what is printed when running `zbctl status`.
