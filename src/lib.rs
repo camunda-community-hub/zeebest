@@ -9,6 +9,7 @@ mod create_workflow_instance;
 mod fail_job;
 mod gateway;
 mod gateway_grpc;
+mod job_fn;
 mod publish_message;
 
 pub use activate_and_process_jobs::{JobError, WorkerConfig};
