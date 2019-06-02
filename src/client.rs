@@ -1,6 +1,7 @@
-use crate::activate_and_process_jobs::{activate_and_process_jobs, JobError, WorkerConfig};
+use crate::activate_and_process_jobs::{activate_and_process_jobs, JobResponse, JobResult, JobError, WorkerConfig};
 use crate::activate_jobs::{activate_jobs, ActivateJobsConfig};
 use crate::complete_job::{complete_job, CompletedJobData};
+use crate::job_fn::JobFn;
 use crate::gateway;
 pub use crate::gateway::{
     ActivateJobsResponse, ActivatedJob, CreateWorkflowInstanceRequest,
@@ -244,15 +245,15 @@ impl Client {
     pub fn activate_and_process_jobs<F, X>(
         &self,
         worker_config: WorkerConfig,
-        f: F,
-    ) -> impl Stream<Item = CompletedJobData, Error = Error>
+        job_fn: JobFn<F,X>,
+    ) -> impl Stream<Item = JobResult, Error = Error>
     where
-        F: Fn(ActivatedJob) -> X + Send,
-        X: IntoFuture<Item = Option<String>, Error = JobError>,
+        F: Fn(gateway::ActivatedJob) -> X + Send,
+        X: IntoFuture<Item = JobResponse, Error = JobError>,
+        <X as futures::future::IntoFuture>::Future: std::panic::UnwindSafe,
     {
         let client = self.gateway_client.clone();
-        let f = Arc::new(f);
-        activate_and_process_jobs(client, worker_config, f)
+        activate_and_process_jobs(client, worker_config, job_fn)
     }
 
     #[cfg(feature = "timer")]
@@ -260,22 +261,22 @@ impl Client {
         &self,
         duration: Duration,
         worker_config: WorkerConfig,
-        f: F,
-    ) -> impl Stream<Item = CompletedJobData, Error = Error>
+        job_fn: JobFn<F,X>,
+    ) -> impl Stream<Item = JobResult, Error = Error>
     where
-        F: Fn(ActivatedJob) -> X + Send,
-        X: IntoFuture<Item = Option<String>, Error = JobError>,
+        F: Fn(gateway::ActivatedJob) -> X + Send,
+        X: IntoFuture<Item = JobResponse, Error = JobError>,
+        <X as futures::future::IntoFuture>::Future: std::panic::UnwindSafe,
     {
-        let f = Arc::new(f);
         Interval::new_interval(duration)
             .map_err(|e| Error::IntervalError(e))
             .zip(futures::stream::repeat((
                 self.gateway_client.clone(),
                 worker_config,
-                f,
+                job_fn,
             )))
-            .map(|(_, (gateway_client, worker_config, f))| {
-                activate_and_process_jobs(gateway_client, worker_config, f)
+            .map(|(_, (gateway_client, worker_config, job_fn))| {
+                activate_and_process_jobs(gateway_client, worker_config, job_fn)
             })
             .flatten()
     }

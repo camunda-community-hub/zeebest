@@ -12,10 +12,11 @@ mod gateway_grpc;
 mod job_fn;
 mod publish_message;
 
-pub use activate_and_process_jobs::{JobError, WorkerConfig};
+pub use activate_and_process_jobs::{JobError, WorkerConfig, JobResult, JobResponse};
 pub use activate_jobs::ActivateJobsConfig;
 pub use client::{
     ActivatedJob, Client, CreateWorkflowInstanceResponse, DeployWorkflowResponse, Error,
     TopologyResponse, WorkflowMetadata, WorkflowRequestObject, WorkflowVersion,
 };
 pub use complete_job::CompletedJobData;
+pub use job_fn::{JobFn, PanicOption};
