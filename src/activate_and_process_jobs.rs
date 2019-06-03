@@ -1,14 +1,14 @@
-use crate::activate_jobs::activate_jobs;
+use crate::activate_jobs::{create_activate_jobs_response_stream};
 use crate::complete_job::complete_job;
 use crate::fail_job::fail_job;
 use crate::gateway_grpc::GatewayClient;
-use crate::job_fn::{handle_panic, JobFn};
+use crate::job_fn::{handle_panic, JobFnLike};
 use crate::{
     gateway, gateway_grpc, ActivateJobsConfig, ActivatedJob, CompletedJobData, Error, PanicOption,
 };
 use futures::future::Future;
 use futures::{Async, IntoFuture, Stream};
-use std::sync::Arc;
+use std::sync::{Arc, RwLock};
 
 #[derive(Clone)]
 pub struct WorkerConfig {
@@ -29,24 +29,27 @@ pub enum JobResponse {
     DoNothing,
 }
 
-impl IntoFuture for JobResponse {
-    type Future = FutureJobResponse;
-    type Item = JobResponse;
-    type Error = JobError;
-
-    fn into_future(self) -> Self::Future {
-        FutureJobResponse::new(self)
-    }
-}
+//impl IntoFuture for JobResponse {
+//    type Future = FutureJobResponse;
+//    type Item = JobResponse;
+//    type Error = JobError;
+//
+//    fn into_future(self) -> Self::Future {
+//        FutureJobResponse::new(self)
+//    }
+//}
 
 pub struct FutureJobResponse {
-    inner: Option<JobResponse>,
+    f: Box<dyn Future<Item = JobResponse, Error = JobError> + std::panic::UnwindSafe>,
 }
 
 impl FutureJobResponse {
-    pub fn new(job_response: JobResponse) -> Self {
+    pub fn from_future<F>(f: F) -> Self
+        where
+            F: Future<Item = JobResponse, Error = JobError>  + std::panic::UnwindSafe + 'static,
+    {
         FutureJobResponse {
-            inner: Some(job_response),
+            f: Box::new(f)
         }
     }
 }
@@ -56,9 +59,7 @@ impl Future for FutureJobResponse {
     type Error = JobError;
 
     fn poll(&mut self) -> Result<Async<Self::Item>, Self::Error> {
-        Ok(Async::Ready(
-            self.inner.take().expect("cannot poll same job twice"),
-        ))
+        self.f.poll()
     }
 }
 
@@ -92,16 +93,26 @@ pub(crate) fn activate_and_process_jobs<F, X>(
     gateway_client: Arc<gateway_grpc::GatewayClient>,
     activate_jobs_config: ActivateJobsConfig,
     panic_option: PanicOption,
-    job_fn: JobFn<F, X>,
+    job_fn: Arc<JobFnLike>,
 ) -> impl Stream<Item = JobResult, Error = Error>
 where
     F: Fn(gateway::ActivatedJob) -> X + Send + 'static,
     X: IntoFuture<Item = JobResponse, Error = JobError> + 'static,
     <X as futures::future::IntoFuture>::Future: std::panic::UnwindSafe,
 {
-    activate_jobs(gateway_client.clone(), activate_jobs_config)
+    let current_job_count = Arc::new(RwLock::new(activate_jobs_config.amount));
+    let current_job_count_2 = current_job_count.clone();
+    create_activate_jobs_response_stream(gateway_client.clone(), activate_jobs_config.clone())
+        .map(move |response| {
+            // increment the current job count
+            let mut count = current_job_count.write().unwrap();
+            *count = *count + response.jobs.len() as i32;
+            futures::stream::iter_ok(response.jobs.into_iter())
+        })
         .map_err(|e| Error::ActivateJobError(e))
-        .and_then(move |activated_job| {
+        .flatten()
+        .zip(futures::stream::repeat(current_job_count_2))
+        .and_then(move |(activated_job, current_job_count)| {
             let activated_job_cloned = activated_job.clone();
             let client_cloned = gateway_client.clone();
             let job_result = job_fn.call(activated_job.clone());
@@ -109,13 +120,16 @@ where
                 .join3(Ok(activated_job), Ok(client_cloned))
                 .map_err(|e| Error::JobError(e))
                 .and_then(on_job_finished)
+                .inspect(move |_| {
+                    // decrement the count when the job completes
+                    let mut count = current_job_count.write().unwrap();
+                    *count = *count - 1;
+                })
         })
 }
 
 fn on_job_finished(
-input: (JobResponse,
-    ActivatedJob,
-    Arc<GatewayClient>)
+    input: (JobResponse, ActivatedJob, Arc<GatewayClient>),
 ) -> Box<dyn Future<Item = JobResult, Error = Error>> {
     let (job_response, activated_job, client) = input;
 

@@ -1,4 +1,4 @@
-use crate::activate_and_process_jobs::JobResponse;
+use crate::activate_and_process_jobs::{JobResponse, FutureJobResponse};
 use crate::{gateway, ActivatedJob, JobError};
 use futures::{Future, IntoFuture};
 use std::sync::Arc;
@@ -40,10 +40,10 @@ where
 }
 
 impl<F, X> JobFn<F, X>
-where
-    F: Fn(gateway::ActivatedJob) -> X + Send,
-    X: IntoFuture<Item = JobResponse, Error = JobError>,
-    <X as futures::future::IntoFuture>::Future: std::panic::UnwindSafe,
+    where
+        F: Fn(gateway::ActivatedJob) -> X + Send + 'static,
+        X: IntoFuture<Item = JobResponse, Error = JobError> + 'static,
+        <X as futures::future::IntoFuture>::Future: std::panic::UnwindSafe + 'static,
 {
     pub fn call(
         &self,
@@ -78,10 +78,49 @@ where
     }
 }
 
-pub fn handle_panic<F: Future<Item = JobResponse, Error = JobError> + std::panic::UnwindSafe>(
-    f: F,
-activated_job_key: i64,
-            panic_option: PanicOption,
+pub trait JobFnLike {
+    fn job_type(&self) -> String;
+    fn timeout(&self) -> Option<i64>;
+    fn amount(&self) -> Option<i32>;
+    fn panic_option(&self) -> Option<PanicOption>;
+    fn call(
+        &self,
+        activated_job: ActivatedJob,
+    ) -> FutureJobResponse;
+}
+
+impl<F,X> JobFnLike for JobFn<F,X>
+    where
+        F: Fn(gateway::ActivatedJob) -> X + Send + 'static,
+        X: IntoFuture<Item = JobResponse, Error = JobError> + 'static,
+        <X as futures::future::IntoFuture>::Future: std::panic::UnwindSafe + 'static,
+{
+    fn job_type(&self) -> String {
+        self.job_type.clone()
+    }
+
+    fn timeout(&self) -> Option<i64> {
+        self.timeout.clone()
+    }
+
+    fn amount(&self) -> Option<i32> {
+        self.amount.clone()
+    }
+
+    fn panic_option(&self) -> Option<PanicOption> {
+        self.panic_option
+    }
+
+    fn call(&self, activated_job: ActivatedJob) -> FutureJobResponse {
+        let job_fn_result = self.call(activated_job);
+        FutureJobResponse::from_future(job_fn_result)
+    }
+}
+
+pub fn handle_panic(
+    f: FutureJobResponse,
+    activated_job_key: i64,
+    panic_option: PanicOption,
 ) -> impl Future<Item = JobResponse, Error = JobError> {
     f.catch_unwind()
         .then(move |r: Result<Result<JobResponse, JobError>, _>| match r {

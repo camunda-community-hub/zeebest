@@ -28,7 +28,7 @@ fn create_activated_job_stream(
         .flatten()
 }
 
-fn create_activate_jobs_response_stream(
+pub fn create_activate_jobs_response_stream(
     client: Arc<gateway_grpc::GatewayClient>,
     jobs_config: ActivateJobsConfig,
 ) -> Box<dyn Stream<Item = gateway::ActivateJobsResponse, Error = grpc::Error> + Send> {

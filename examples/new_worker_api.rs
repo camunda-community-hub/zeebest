@@ -3,6 +3,7 @@ use std::sync::{Arc, RwLock};
 use futures::{Future, Stream};
 use std::time::Duration;
 use zeebest::{ActivateJobsConfig, Client, JobFn, JobResponse, PanicOption, WorkerConfig};
+use tokio::timer::Interval;
 
 fn main() {
     // put the client in an Arc because it will be used on different threads
@@ -27,6 +28,9 @@ fn main() {
         );
 
     let job_stream = worker.into_job_stream();
+
+//    Interval::new_interval(Duration::from_millis(1000)).and_then(|_|)
+
 
     // poll on an interval, just do the same thing over and over
 //    let future = client
