@@ -2,7 +2,7 @@ use std::sync::{Arc, RwLock};
 // requires future and stream
 use futures::{Future, Stream};
 use std::time::Duration;
-use zeebest::{ActivateJobsConfig, Client, WorkerConfig, JobFn, PanicOption, JobResponse};
+use zeebest::{ActivateJobsConfig, Client, JobFn, JobResponse, PanicOption, WorkerConfig};
 
 fn main() {
     // put the client in an Arc because it will be used on different threads
@@ -16,7 +16,6 @@ fn main() {
             timeout: 1000,
             amount: 32,
         },
-        cancel_workflow_on_panic: false,
     };
 
     let data = Arc::new(RwLock::new(10));
@@ -30,7 +29,7 @@ fn main() {
         JobResponse::Complete { payload: None }
     };
 
-    let job_fn = JobFn::new(handler, PanicOption::FailJobOnPanic);
+    let job_fn = JobFn::with_job_type_and_handler(handler, PanicOption::FailJobOnPanic);
 
     // poll on an interval, just do the same thing over and over
     let future = client

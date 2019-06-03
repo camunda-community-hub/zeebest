@@ -1,8 +1,5 @@
-use crate::activate_and_process_jobs::{activate_and_process_jobs, JobResponse, JobResult, JobError, WorkerConfig};
-use crate::activate_jobs::{activate_jobs, ActivateJobsConfig};
+use crate::activate_and_process_jobs::JobError;
 use crate::complete_job::{complete_job, CompletedJobData};
-use crate::job_fn::JobFn;
-use crate::gateway;
 pub use crate::gateway::{
     ActivateJobsResponse, ActivatedJob, CreateWorkflowInstanceRequest,
     CreateWorkflowInstanceResponse, DeployWorkflowRequest, DeployWorkflowResponse,
@@ -10,7 +7,8 @@ pub use crate::gateway::{
     WorkflowRequestObject,
 };
 use crate::gateway_grpc::*;
-use futures::{Future, IntoFuture, Stream};
+pub use crate::worker::Worker;
+use futures::Future;
 use grpc::ClientStubExt;
 use std::sync::Arc;
 
@@ -46,6 +44,7 @@ pub enum Error {
     PublishMessageError(grpc::Error),
     #[fail(display = "Fail Job Error. {:?}", _0)]
     FailJobError(grpc::Error),
+    #[cfg(feature = "timer")]
     #[fail(display = "Interval Error. {:?}", _0)]
     IntervalError(tokio::timer::Error),
     #[fail(display = "Job Error. {:?}", _0)]
@@ -179,13 +178,13 @@ impl Client {
         )
     }
 
-    /// activate jobs
-    pub fn activate_jobs(
-        &self,
-        jobs_config: &ActivateJobsConfig,
-    ) -> impl Stream<Item = gateway::ActivatedJob, Error = grpc::Error> + Send {
-        activate_jobs(&self.gateway_client, &jobs_config)
-    }
+    //    /// activate jobs
+    //    pub fn activate_jobs(
+    //        &self,
+    //        jobs_config: &ActivateJobsConfig,
+    //    ) -> impl Stream<Item = gateway::ActivatedJob, Error = grpc::Error> + Send {
+    //        activate_jobs(&self.gateway_client, &jobs_config)
+    //    }
 
     /// complete a job
     pub fn complete_job(
@@ -242,42 +241,46 @@ impl Client {
         )
     }
 
-    pub fn activate_and_process_jobs<F, X>(
-        &self,
-        worker_config: WorkerConfig,
-        job_fn: JobFn<F,X>,
-    ) -> impl Stream<Item = JobResult, Error = Error>
-    where
-        F: Fn(gateway::ActivatedJob) -> X + Send,
-        X: IntoFuture<Item = JobResponse, Error = JobError>,
-        <X as futures::future::IntoFuture>::Future: std::panic::UnwindSafe,
-    {
-        let client = self.gateway_client.clone();
-        activate_and_process_jobs(client, worker_config, job_fn)
-    }
+    //    pub fn activate_and_process_jobs<F, X>(
+    //        &self,
+    //        worker_config: WorkerConfig,
+    //        job_fn: JobFn<F,X>,
+    //    ) -> impl Stream<Item = JobResult, Error = Error>
+    //    where
+    //        F: Fn(gateway::ActivatedJob) -> X + Send,
+    //        X: IntoFuture<Item = JobResponse, Error = JobError>,
+    //        <X as futures::future::IntoFuture>::Future: std::panic::UnwindSafe,
+    //    {
+    //        let client = self.gateway_client.clone();
+    //        activate_and_process_jobs(client, worker_config, job_fn)
+    //    }
 
-    #[cfg(feature = "timer")]
-    pub fn activate_and_process_jobs_interval<F, X>(
-        &self,
-        duration: Duration,
-        worker_config: WorkerConfig,
-        job_fn: JobFn<F,X>,
-    ) -> impl Stream<Item = JobResult, Error = Error>
-    where
-        F: Fn(gateway::ActivatedJob) -> X + Send,
-        X: IntoFuture<Item = JobResponse, Error = JobError>,
-        <X as futures::future::IntoFuture>::Future: std::panic::UnwindSafe,
-    {
-        Interval::new_interval(duration)
-            .map_err(|e| Error::IntervalError(e))
-            .zip(futures::stream::repeat((
-                self.gateway_client.clone(),
-                worker_config,
-                job_fn,
-            )))
-            .map(|(_, (gateway_client, worker_config, job_fn))| {
-                activate_and_process_jobs(gateway_client, worker_config, job_fn)
-            })
-            .flatten()
+    //    #[cfg(feature = "timer")]
+    //    pub fn activate_and_process_jobs_interval<F, X>(
+    //        &self,
+    //        duration: Duration,
+    //        worker_config: WorkerConfig,
+    //        job_fn: JobFn<F,X>,
+    //    ) -> impl Stream<Item = JobResult, Error = Error>
+    //    where
+    //        F: Fn(gateway::ActivatedJob) -> X + Send,
+    //        X: IntoFuture<Item = JobResponse, Error = JobError>,
+    //        <X as futures::future::IntoFuture>::Future: std::panic::UnwindSafe,
+    //    {
+    //        Interval::new_interval(duration)
+    //            .map_err(|e| Error::IntervalError(e))
+    //            .zip(futures::stream::repeat((
+    //                self.gateway_client.clone(),
+    //                worker_config,
+    //                job_fn,
+    //            )))
+    //            .map(|(_, (gateway_client, worker_config, job_fn))| {
+    //                activate_and_process_jobs(gateway_client, worker_config, job_fn)
+    //            })
+    //            .flatten()
+    //    }
+
+    pub fn worker<S: Into<String>>(&self, name: S) -> Worker {
+        Worker::new(name, self.gateway_client.clone())
     }
 }

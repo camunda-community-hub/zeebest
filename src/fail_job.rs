@@ -10,7 +10,6 @@ pub struct FailJobData {
     pub reason: Option<String>,
 }
 
-
 pub(crate) fn fail_job(
     gateway_client: &gateway_grpc::GatewayClient,
     job_key: i64,

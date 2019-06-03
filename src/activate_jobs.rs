@@ -1,6 +1,7 @@
 use crate::gateway_grpc::Gateway;
 use crate::{gateway, gateway_grpc};
 use futures::Stream;
+use std::sync::Arc;
 
 #[derive(Clone)]
 pub struct ActivateJobsConfig {
@@ -12,15 +13,15 @@ pub struct ActivateJobsConfig {
 
 /// Get a future that activates jobs and flattens them to a stream of gateway::ActivatedJob
 pub(crate) fn activate_jobs(
-    client: &gateway_grpc::GatewayClient,
-    jobs_config: &ActivateJobsConfig,
+    client: Arc<gateway_grpc::GatewayClient>,
+    jobs_config: ActivateJobsConfig,
 ) -> impl Stream<Item = gateway::ActivatedJob, Error = grpc::Error> + Send {
     create_activated_job_stream(client, jobs_config)
 }
 
 fn create_activated_job_stream(
-    client: &gateway_grpc::GatewayClient,
-    jobs_config: &ActivateJobsConfig,
+    client: Arc<gateway_grpc::GatewayClient>,
+    jobs_config: ActivateJobsConfig,
 ) -> impl Stream<Item = gateway::ActivatedJob, Error = grpc::Error> + Send {
     create_activate_jobs_response_stream(client, jobs_config)
         .map(|r| futures::stream::iter_ok(r.jobs.into_iter()))
@@ -28,8 +29,8 @@ fn create_activated_job_stream(
 }
 
 fn create_activate_jobs_response_stream(
-    client: &gateway_grpc::GatewayClient,
-    jobs_config: &ActivateJobsConfig,
+    client: Arc<gateway_grpc::GatewayClient>,
+    jobs_config: ActivateJobsConfig,
 ) -> Box<dyn Stream<Item = gateway::ActivateJobsResponse, Error = grpc::Error> + Send> {
     let request = create_activate_jobs_request(jobs_config);
     let options = Default::default();
@@ -38,7 +39,7 @@ fn create_activate_jobs_response_stream(
     grpc_stream
 }
 
-fn create_activate_jobs_request(jobs_config: &ActivateJobsConfig) -> gateway::ActivateJobsRequest {
+fn create_activate_jobs_request(jobs_config: ActivateJobsConfig) -> gateway::ActivateJobsRequest {
     let mut activate_jobs_request = gateway::ActivateJobsRequest::default();
     activate_jobs_request.set_amount(jobs_config.amount); // TODO: make this configurable
     activate_jobs_request.set_timeout(jobs_config.timeout);
