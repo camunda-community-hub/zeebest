@@ -11,8 +11,11 @@ fn main() {
 
     let job_fn = JobFn::with_job_type_and_handler("payment-service", move |_payload| {
         JobResponse::Complete { payload: None }
-    })
-    .panic_option(PanicOption::DoNothingOnPanic);
+    });
+
+    let first_worker = client.worker("cool_worker").job(job_fn);
+
+    let poll_stream = poll_worker(Duration::from_millis(1000), first_worker);
 
     let worker = client
         .worker("rusty-worker")
