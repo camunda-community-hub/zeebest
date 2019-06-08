@@ -13,6 +13,8 @@ mod job_fn;
 mod publish_message;
 mod worker;
 
+mod blowetime;
+
 pub use activate_and_process_jobs::{JobError, JobResponse, JobResult, WorkerConfig, FutureJobResponse};
 pub use activate_jobs::ActivateJobsConfig;
 pub use client::{
@@ -21,4 +23,3 @@ pub use client::{
 };
 pub use complete_job::CompletedJobData;
 pub use job_fn::{JobFn, JobFnLike, PanicOption};
-pub use worker::Worker;

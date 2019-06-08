@@ -7,7 +7,6 @@ pub use crate::gateway::{
     WorkflowRequestObject,
 };
 use crate::gateway_grpc::*;
-pub use crate::worker::Worker;
 use futures::Future;
 use grpc::ClientStubExt;
 use std::sync::Arc;
@@ -280,7 +279,7 @@ impl Client {
     //            .flatten()
     //    }
 
-    pub fn worker<S: Into<String>>(&self, name: S) -> Worker {
-        Worker::new(name, self.gateway_client.clone())
-    }
+//    pub fn worker<S: Into<String>>(&self, name: S) -> Worker {
+//        Worker::new(name, self.gateway_client.clone())
+//    }
 }

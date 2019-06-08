@@ -5,6 +5,19 @@ by starting up a zeebe broker locally and deploy a workflow with:
 
 `cargo run --package zeebest --example deploy_workflow`
 
+## Workers
+
+Workers in zeebest operate slightly differently than the other zeebe clients. The worker is `future`-first. The Rust
+`futures` ecosystem is rich, and this crate does not intend to reproduce behavior that exists in other crates. It also
+does not enforce the use of a runtime. No interval/polling is implemented. This is something that can be done with the `tokio`
+`interval`.
+
+Workers may activate and process jobs with a handler. Optionally, a worker may have a max number of concurrent jobs. 
+The worker will do its best to only request jobs from the broker up to the maximum amount. Each job handler may complete or fail a job.
+
+```rust
+```
+
 ## Todos
 
 There are some big issues that needed to be addressed! Some are in-flight, and there is already plenty of refactoring 
