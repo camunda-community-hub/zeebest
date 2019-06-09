@@ -126,9 +126,7 @@ where
         let current_amount = current_number_of_jobs.load(Ordering::SeqCst);
 
         // assert on an unreachable edge case
-        if current_amount > self.max_amount {
-            unreachable!("current number of jobs exceeds allowed number of running jobs");
-        }
+        assert!(current_amount < self.max_amount, "current number of jobs exceeds allowed number of running jobs");
 
         // also inspect the job count, so as to only request a number of jobs equal to available slots
         let next_amount = self.max_amount - current_amount;
@@ -149,7 +147,7 @@ where
             .gateway_client
             .activate_jobs(options, activate_jobs_request);
 
-        // drop the unecessary grpc metadata, and convert the error
+        // drop the unnecessary grpc metadata, and convert the error
         let grpc_stream = grpc_response
             .drop_metadata()
             .map_err(|e| Error::GrpcError(e));
