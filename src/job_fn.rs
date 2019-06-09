@@ -1,4 +1,4 @@
-use crate::activate_and_process_jobs::{JobResponse, FutureJobResponse};
+use crate::activate_and_process_jobs::{FutureJobResponse, JobResponse};
 use crate::{gateway, ActivatedJob, JobError};
 use futures::{Future, IntoFuture};
 use std::sync::Arc;
@@ -40,10 +40,10 @@ where
 }
 
 impl<F, X> JobFn<F, X>
-    where
-        F: Fn(gateway::ActivatedJob) -> X + Send + 'static,
-        X: IntoFuture<Item = JobResponse, Error = JobError> + 'static,
-        <X as futures::future::IntoFuture>::Future: std::panic::UnwindSafe + 'static,
+where
+    F: Fn(gateway::ActivatedJob) -> X + Send + 'static,
+    X: IntoFuture<Item = JobResponse, Error = JobError> + 'static,
+    <X as futures::future::IntoFuture>::Future: std::panic::UnwindSafe + 'static,
 {
     pub fn call(
         &self,
@@ -83,17 +83,14 @@ pub trait JobFnLike {
     fn timeout(&self) -> Option<i64>;
     fn amount(&self) -> Option<i32>;
     fn panic_option(&self) -> Option<PanicOption>;
-    fn call(
-        &self,
-        activated_job: ActivatedJob,
-    ) -> FutureJobResponse;
+    fn call(&self, activated_job: ActivatedJob) -> FutureJobResponse;
 }
 
-impl<F,X> JobFnLike for JobFn<F,X>
-    where
-        F: Fn(gateway::ActivatedJob) -> X + Send + 'static,
-        X: IntoFuture<Item = JobResponse, Error = JobError> + 'static,
-        <X as futures::future::IntoFuture>::Future: std::panic::UnwindSafe + 'static,
+impl<F, X> JobFnLike for JobFn<F, X>
+where
+    F: Fn(gateway::ActivatedJob) -> X + Send + 'static,
+    X: IntoFuture<Item = JobResponse, Error = JobError> + 'static,
+    <X as futures::future::IntoFuture>::Future: std::panic::UnwindSafe + 'static,
 {
     fn job_type(&self) -> String {
         self.job_type.clone()

@@ -13,9 +13,9 @@ mod job_fn;
 mod publish_message;
 mod worker;
 
-mod blowetime;
-
-pub use activate_and_process_jobs::{JobError, JobResponse, JobResult, WorkerConfig, FutureJobResponse};
+pub use activate_and_process_jobs::{
+    FutureJobResponse, JobError, JobResponse, JobResult, WorkerConfig,
+};
 pub use activate_jobs::ActivateJobsConfig;
 pub use client::{
     ActivatedJob, Client, CreateWorkflowInstanceResponse, DeployWorkflowResponse, Error,

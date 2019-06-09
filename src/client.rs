@@ -18,10 +18,10 @@ use crate::publish_message::{
     publish_message_with_no_payload, publish_message_with_serializable_payload,
 };
 use serde::Serialize;
-#[cfg(feature = "timer")]
-use std::time::Duration;
-#[cfg(feature = "timer")]
-use tokio::timer::Interval;
+//#[cfg(feature = "timer")]
+//use std::time::Duration;
+//#[cfg(feature = "timer")]
+//use tokio::timer::Interval;
 
 #[derive(Debug, Fail)]
 pub enum Error {
@@ -279,7 +279,7 @@ impl Client {
     //            .flatten()
     //    }
 
-//    pub fn worker<S: Into<String>>(&self, name: S) -> Worker {
-//        Worker::new(name, self.gateway_client.clone())
-//    }
+    //    pub fn worker<S: Into<String>>(&self, name: S) -> Worker {
+    //        Worker::new(name, self.gateway_client.clone())
+    //    }
 }

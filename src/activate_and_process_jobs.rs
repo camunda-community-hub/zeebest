@@ -1,4 +1,4 @@
-use crate::activate_jobs::{create_activate_jobs_response_stream};
+use crate::activate_jobs::create_activate_jobs_response_stream;
 use crate::complete_job::complete_job;
 use crate::fail_job::fail_job;
 use crate::gateway_grpc::GatewayClient;
@@ -45,12 +45,10 @@ pub struct FutureJobResponse {
 
 impl FutureJobResponse {
     pub fn from_future<F>(f: F) -> Self
-        where
-            F: Future<Item = JobResponse, Error = JobError>  + std::panic::UnwindSafe + 'static,
+    where
+        F: Future<Item = JobResponse, Error = JobError> + std::panic::UnwindSafe + 'static,
     {
-        FutureJobResponse {
-            f: Box::new(f)
-        }
+        FutureJobResponse { f: Box::new(f) }
     }
 }
 
