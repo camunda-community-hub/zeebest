@@ -117,10 +117,15 @@ where
     pub fn activate_and_process_jobs(
         &mut self,
     ) -> impl Stream<Item = (JobResult, i64), Error = Error> {
+
+        // clone the job counter, as it will be moved into a few different closures
         let current_number_of_jobs = self.current_amount.clone();
         let current_number_of_jobs_2 = self.current_amount.clone();
 
+        // read the current job count value
         let current_amount = current_number_of_jobs.load(Ordering::SeqCst);
+
+        // assert on an unreachable edge case
         if current_amount > self.max_amount {
             unreachable!("current number of jobs exceeds allowed number of running jobs");
         }
@@ -131,24 +136,31 @@ where
         // This is needed in case the requests are very slow, and/or do not return in order they were sent.
         current_number_of_jobs.fetch_add(next_amount, Ordering::SeqCst);
 
+        // construct a request - this is all grpc stuff
         let mut activate_jobs_request = gateway::ActivateJobsRequest::default();
         activate_jobs_request.set_amount(next_amount as i32); // TODO: make this configurable
         activate_jobs_request.set_timeout(self.timeout);
         activate_jobs_request.set_worker(self.worker.clone());
         activate_jobs_request.set_field_type(self.job_type.clone());
         let options = Default::default();
+
+        // create the grpc stream response
         let grpc_response: grpc::StreamingResponse<_> = self
             .gateway_client
             .activate_jobs(options, activate_jobs_request);
 
+        // drop the unecessary grpc metadata, and convert the error
         let grpc_stream = grpc_response
             .drop_metadata()
             .map_err(|e| Error::GrpcError(e));
 
+        // make a copy of the panic option
         let panic_option = self.panic_option;
 
+        // make a clone of the gateway client
         let gateway_client = self.gateway_client.clone();
 
+        // start building the jobs stream
         let jobs_stream = grpc_stream
             .and_then(move |response| Ok((response.jobs.len(), response.jobs.into_iter())))
             .and_then(move |(job_count, jobs)| {
