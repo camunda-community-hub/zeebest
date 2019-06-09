@@ -1,6 +1,5 @@
 use crate::gateway;
 use crate::gateway_grpc;
-use crate::gateway_grpc::Gateway;
 use futures::{Future, Poll, Stream};
 use std::sync::atomic::{AtomicU16, Ordering};
 use std::sync::Arc;
@@ -13,7 +12,7 @@ pub enum PanicOption {
 }
 
 /// A result that describes the output of a job.
-#[derive(Clone)]
+#[derive(Clone, Debug, PartialEq)]
 enum JobResult {
     Complete { payload: Option<String> },
     Fail,
@@ -75,7 +74,7 @@ where
     current_amount: Arc<AtomicU16>,
     max_amount: u16,
     panic_option: PanicOption,
-    gateway_client: Arc<gateway_grpc::GatewayClient>,
+    gateway_client: Arc<gateway_grpc::Gateway + Send + Sync>,
     handler: Arc<H>,
 }
 
@@ -90,12 +89,12 @@ where
         timeout: i64,
         max_amount: u16,
         panic_option: PanicOption,
-        gateway_client: Arc<gateway_grpc::GatewayClient>,
+        gateway_client: Arc<gateway_grpc::Gateway + Send + Sync>,
         handler: H,
     ) -> Self {
         assert!(max_amount > 0, "max amount must be greater than zero");
 
-        // the current number of running jobs, initilized to zero, and wrapped in an atomic because
+        // the current number of running jobs, initialized to zero, and wrapped in an atomic because
         // this value will be modified between threads
         let current_amount = Arc::new(AtomicU16::new(0));
 
@@ -117,7 +116,6 @@ where
     pub fn activate_and_process_jobs(
         &mut self,
     ) -> impl Stream<Item = (JobResult, i64), Error = Error> {
-
         // clone the job counter, as it will be moved into a few different closures
         let current_number_of_jobs = self.current_amount.clone();
         let current_number_of_jobs_2 = self.current_amount.clone();
@@ -126,7 +124,10 @@ where
         let current_amount = current_number_of_jobs.load(Ordering::SeqCst);
 
         // assert on an unreachable edge case
-        assert!(current_amount < self.max_amount, "current number of jobs exceeds allowed number of running jobs");
+        assert!(
+            current_amount < self.max_amount,
+            "current number of jobs exceeds allowed number of running jobs"
+        );
 
         // also inspect the job count, so as to only request a number of jobs equal to available slots
         let next_amount = self.max_amount - current_amount;
@@ -169,7 +170,7 @@ where
                 // the counter has already been incremented, but there may be fewer jobs returned.
                 // Decrease the counter if the difference is greater than zero, this opens
                 // available jobs slots.
-                let difference = (job_count as u16) - next_amount;
+                let difference = next_amount - (job_count as u16);
                 if difference > 0 {
                     current_number_of_jobs.fetch_sub(difference, Ordering::SeqCst);
                 }
@@ -252,27 +253,157 @@ where
     }
 }
 
+struct MockGatewayClient {
+    pub jobs: Vec<i64>,
+}
+
+impl gateway_grpc::Gateway for MockGatewayClient {
+    fn topology(
+        &self,
+        o: grpc::RequestOptions,
+        p: gateway::TopologyRequest,
+    ) -> grpc::SingleResponse<gateway::TopologyResponse> {
+        unimplemented!()
+    }
+
+    fn deploy_workflow(
+        &self,
+        o: grpc::RequestOptions,
+        p: gateway::DeployWorkflowRequest,
+    ) -> grpc::SingleResponse<gateway::DeployWorkflowResponse> {
+        unimplemented!()
+    }
+
+    fn publish_message(
+        &self,
+        o: grpc::RequestOptions,
+        p: gateway::PublishMessageRequest,
+    ) -> grpc::SingleResponse<gateway::PublishMessageResponse> {
+        unimplemented!()
+    }
+
+    fn create_job(
+        &self,
+        o: grpc::RequestOptions,
+        p: gateway::CreateJobRequest,
+    ) -> grpc::SingleResponse<gateway::CreateJobResponse> {
+        unimplemented!()
+    }
+
+    fn update_job_retries(
+        &self,
+        o: grpc::RequestOptions,
+        p: gateway::UpdateJobRetriesRequest,
+    ) -> grpc::SingleResponse<gateway::UpdateJobRetriesResponse> {
+        unimplemented!()
+    }
+
+    fn fail_job(
+        &self,
+        o: grpc::RequestOptions,
+        p: gateway::FailJobRequest,
+    ) -> grpc::SingleResponse<gateway::FailJobResponse> {
+        let item: Box<
+            dyn Future<Item = (gateway::FailJobResponse, grpc::Metadata), Error = grpc::Error>
+                + Send
+                + 'static,
+        > = Box::new(futures::future::ok((
+            gateway::FailJobResponse::default(),
+            grpc::Metadata::default(),
+        )));
+        grpc::SingleResponse::new(futures::future::ok((grpc::Metadata::default(), item)))
+    }
+
+    fn complete_job(
+        &self,
+        o: grpc::RequestOptions,
+        p: gateway::CompleteJobRequest,
+    ) -> grpc::SingleResponse<gateway::CompleteJobResponse> {
+        let item: Box<dyn Future<Item = _, Error = _> + Send + 'static> = Box::new(
+            futures::future::ok((gateway::CompleteJobResponse::default(), Default::default())),
+        );
+        grpc::SingleResponse::new(futures::future::ok((Default::default(), item)))
+    }
+
+    fn create_workflow_instance(
+        &self,
+        o: grpc::RequestOptions,
+        p: gateway::CreateWorkflowInstanceRequest,
+    ) -> grpc::SingleResponse<gateway::CreateWorkflowInstanceResponse> {
+        unimplemented!()
+    }
+
+    fn cancel_workflow_instance(
+        &self,
+        o: grpc::RequestOptions,
+        p: gateway::CancelWorkflowInstanceRequest,
+    ) -> grpc::SingleResponse<gateway::CancelWorkflowInstanceResponse> {
+        unimplemented!()
+    }
+
+    fn update_workflow_instance_payload(
+        &self,
+        o: grpc::RequestOptions,
+        p: gateway::UpdateWorkflowInstancePayloadRequest,
+    ) -> grpc::SingleResponse<gateway::UpdateWorkflowInstancePayloadResponse> {
+        unimplemented!()
+    }
+
+    fn activate_jobs(
+        &self,
+        o: grpc::RequestOptions,
+        p: gateway::ActivateJobsRequest,
+    ) -> grpc::StreamingResponse<gateway::ActivateJobsResponse> {
+        let activated_jobs: Vec<_> = self
+            .jobs
+            .iter()
+            .map(|job_key| {
+                let mut activated_job = gateway::ActivatedJob::default();
+                activated_job.set_retries(5);
+                activated_job.set_key(*job_key);
+                activated_job
+            })
+            .collect();
+        let mut response = gateway::ActivateJobsResponse::default();
+        response.set_jobs(activated_jobs.into());
+        let activated_jobs = futures::stream::iter_ok(vec![response]);
+        grpc::StreamingResponse::metadata_and_stream_and_trailing_metadata(
+            Default::default(),
+            activated_jobs,
+            futures::future::ok(Default::default()),
+        )
+    }
+
+    fn list_workflows(
+        &self,
+        o: grpc::RequestOptions,
+        p: gateway::ListWorkflowsRequest,
+    ) -> grpc::SingleResponse<gateway::ListWorkflowsResponse> {
+        unimplemented!()
+    }
+
+    fn get_workflow(
+        &self,
+        o: grpc::RequestOptions,
+        p: gateway::GetWorkflowRequest,
+    ) -> grpc::SingleResponse<gateway::GetWorkflowResponse> {
+        unimplemented!()
+    }
+}
+
 #[cfg(test)]
 mod test {
     use crate::gateway;
-    use crate::worker::{JobResult, JobWorker, PanicOption};
+    use crate::worker::{JobResult, JobWorker, MockGatewayClient, PanicOption};
     use futures::{Future, Stream};
-    use std::time::Duration;
-    use tokio::timer::Interval;
+    use std::sync::Arc;
 
     /// THIS DEMONSTRATES USAGE, NOT ACTUALLY A TEST
     #[test]
     fn do_stuff() {
-        use crate::Client;
-        let client = Client::new("127.0.0.1", 26500).unwrap();
+        let mock_gateway_client = Arc::new(MockGatewayClient { jobs: vec![1, 2] });
 
-        // handler for job type "foo"
-        let handler_foo = |_aj: gateway::ActivatedJob| {
-            futures::future::ok::<JobResult, String>(JobResult::Complete { payload: None })
-        };
-
-        // handler for job type "bar"
-        let handler_bar = |_aj: gateway::ActivatedJob| {
+        let handler = |_aj: gateway::ActivatedJob| {
             futures::future::ok::<JobResult, String>(JobResult::Complete { payload: None })
         };
 
@@ -282,37 +413,21 @@ mod test {
             10000,
             32,
             PanicOption::FailJobOnPanic,
-            client.gateway_client.clone(),
-            handler_foo,
-        );
-
-        let mut job_worker_b = JobWorker::new(
-            "rusty-worker".to_string(),
-            "b".to_string(),
-            10000,
-            1,
-            PanicOption::FailJobOnPanic,
-            client.gateway_client.clone(),
-            handler_bar,
+            mock_gateway_client.clone(),
+            handler,
         );
 
         // just get jobs right now, do nothing with stream
         let job_a_stream = job_worker_a.activate_and_process_jobs();
 
-        // get jobs on an interval, throw on tokio
-        // may be able to make this more convenient, but you get the point
-        let do_work_on_interval = Interval::new_interval(Duration::from_millis(1000))
-            .map_err(|_| ())
-            .and_then(move |_| {
-                job_worker_b
-                    .activate_and_process_jobs()
-                    .collect()
-                    .map_err(|_| ())
-            })
-            .collect()
-            .map(|_| ());
+        let results = job_a_stream.collect().wait().unwrap();
 
-        tokio::run(do_work_on_interval);
+        assert_eq!(
+            results,
+            vec![
+                (JobResult::Complete { payload: None }, 1i64),
+                (JobResult::Complete { payload: None }, 2i64)
+            ]
+        );
     }
-
 }
