@@ -54,6 +54,16 @@ enum Error {
     JobError(String),
 }
 
+/// The `JobWorker` describes what a job type and contains a job handler function to call when jobs
+/// are ready to be worked on. The job worker has a maximum number of concurrent jobs that is
+/// controlled by an atomic, consistent counter. When a job handler returns, the job worker will
+/// respond to the gateway with the correct response (complete or fail). The job worker can be
+/// configured with a panic option, so that it knows if to fail the job or do nothing if the handler
+/// panics.
+///
+/// The only method will poll for jobs, and if there are any, will start processing jobs. It will
+/// only activate up to the maximum number of concurrent jobs allowed. When jobs complete, the counter
+/// is updated.
 struct JobWorker<H, F>
 where
     H: Fn(gateway::ActivatedJob) -> F,
@@ -85,8 +95,11 @@ where
     ) -> Self {
         assert!(max_amount > 0, "max amount must be greater than zero");
 
+        // the current number of running jobs, initilized to zero, and wrapped in an atomic because
+        // this value will be modified between threads
         let current_amount = Arc::new(AtomicU16::new(0));
 
+        // put the handler in an arc, so it may be easily accessed in many threads
         let handler = Arc::new(handler);
 
         JobWorker {
