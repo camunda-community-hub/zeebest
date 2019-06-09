@@ -184,13 +184,12 @@ where
                 jobs.map(move |a| {
                     let job_key = a.get_key();
                     let retries = a.get_retries();
-                    ((handler)(a)) // call the handler with the `ActivatedJob` data
-                        .map_err(|e| Error::JobError(e))
+                    let f: F = (handler)(a); // call the handler with the `ActivatedJob` data
                         // catch any panic, and handle the panic according to the panic option
-                        .catch_unwind()
-                        .then(move |r: Result<Result<JobResult, Error>, _>| match r {
+                        f.catch_unwind()
+                        .then(move |r: Result<Result<JobResult, _>, _>| match r {
                             // all non panics are simply unwrapped to the underlying result
-                            Ok(job_result) => job_result,
+                            Ok(job_result) => job_result.map_err(|e| Error::JobError(e)),
                             // panic option is matched in case of a panic
                             Err(_panic_error) => match panic_option {
                                 PanicOption::FailJobOnPanic => Ok(JobResult::Fail),
@@ -398,16 +397,15 @@ mod test {
     use futures::{Future, Stream};
     use std::sync::Arc;
 
-    /// THIS DEMONSTRATES USAGE, NOT ACTUALLY A TEST
     #[test]
-    fn do_stuff() {
+    fn completing_jobs() {
         let mock_gateway_client = Arc::new(MockGatewayClient { jobs: vec![1, 2] });
 
         let handler = |_aj: gateway::ActivatedJob| {
             futures::future::ok::<JobResult, String>(JobResult::Complete { payload: None })
         };
 
-        let mut job_worker_a = JobWorker::new(
+        let mut job_worker = JobWorker::new(
             "rusty-worker".to_string(),
             "a".to_string(),
             10000,
@@ -417,15 +415,85 @@ mod test {
             handler,
         );
 
-        // just get jobs right now, do nothing with stream
-        let job_a_stream = job_worker_a.activate_and_process_jobs();
-
-        let results = job_a_stream.collect().wait().unwrap();
+        let results = job_worker
+            .activate_and_process_jobs()
+            .collect()
+            .wait()
+            .unwrap();
 
         assert_eq!(
             results,
             vec![
                 (JobResult::Complete { payload: None }, 1i64),
+                (JobResult::Complete { payload: None }, 2i64)
+            ]
+        );
+    }
+
+    #[test]
+    fn failing_jobs() {
+        let mock_gateway_client = Arc::new(MockGatewayClient { jobs: vec![1, 2] });
+
+        let handler = |_aj: gateway::ActivatedJob| {
+            futures::future::ok::<JobResult, String>(JobResult::Fail)
+        };
+
+        let mut job_worker = JobWorker::new(
+            "rusty-worker".to_string(),
+            "a".to_string(),
+            10000,
+            32,
+            PanicOption::FailJobOnPanic,
+            mock_gateway_client.clone(),
+            handler,
+        );
+
+        let results = job_worker
+            .activate_and_process_jobs()
+            .collect()
+            .wait()
+            .unwrap();
+
+        assert_eq!(
+            results,
+            vec![
+                (JobResult::Fail, 1i64),
+                (JobResult::Fail, 2i64)
+            ]
+        );
+    }
+
+    #[test]
+    fn some_jobs_panic() {
+        let mock_gateway_client = Arc::new(MockGatewayClient { jobs: vec![1, 2] });
+
+        let handler = |aj: gateway::ActivatedJob| {
+            if aj.key == 1 {
+                panic!("gahh!");
+            }
+            futures::future::ok::<JobResult, String>(JobResult::Complete { payload: None})
+        };
+
+        let mut job_worker = JobWorker::new(
+            "rusty-worker".to_string(),
+            "a".to_string(),
+            10000,
+            32,
+            PanicOption::DoNothingOnPanic,
+            mock_gateway_client.clone(),
+            handler,
+        );
+
+        let results = job_worker
+            .activate_and_process_jobs()
+            .collect()
+            .wait()
+            .unwrap();
+
+        assert_eq!(
+            results,
+            vec![
+                (JobResult::NoAction, 1i64),
                 (JobResult::Complete { payload: None }, 2i64)
             ]
         );
