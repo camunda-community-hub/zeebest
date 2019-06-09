@@ -237,6 +237,7 @@ mod test {
     use std::time::Duration;
     use tokio::timer::Interval;
 
+    /// THIS DEMONSTRATES USAGE, NOT ACTUALLY A TEST
     #[test]
     fn do_stuff() {
         use crate::Client;
@@ -246,8 +247,6 @@ mod test {
         let handler_foo = |_aj: gateway::ActivatedJob| {
             futures::future::ok::<JobResult, String>(JobResult::Complete { payload: None })
         };
-
-        // foo jobs will use the default maximum number of concurrent jobs
 
         // handler for job type "bar"
         let handler_bar = |_aj: gateway::ActivatedJob| {
@@ -274,8 +273,11 @@ mod test {
             handler_bar,
         );
 
+        // just get jobs right now, do nothing with stream
         let job_a_stream = job_worker_a.activate_and_process_jobs();
 
+        // get jobs on an interval, throw on tokio
+        // may be able to make this more convenient, but you get the point
         let do_work_on_interval = Interval::new_interval(Duration::from_millis(1000))
             .map_err(|_| ())
             .and_then(move |_| {
