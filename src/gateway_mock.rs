@@ -30,14 +30,6 @@ impl gateway_grpc::Gateway for MockGatewayClient {
         unimplemented!()
     }
 
-    fn create_job(
-        &self,
-        _o: grpc::RequestOptions,
-        _p: gateway::CreateJobRequest,
-    ) -> grpc::SingleResponse<gateway::CreateJobResponse> {
-        unimplemented!()
-    }
-
     fn update_job_retries(
         &self,
         _o: grpc::RequestOptions,
@@ -89,14 +81,6 @@ impl gateway_grpc::Gateway for MockGatewayClient {
         unimplemented!()
     }
 
-    fn update_workflow_instance_payload(
-        &self,
-        _o: grpc::RequestOptions,
-        _p: gateway::UpdateWorkflowInstancePayloadRequest,
-    ) -> grpc::SingleResponse<gateway::UpdateWorkflowInstancePayloadResponse> {
-        unimplemented!()
-    }
-
     fn activate_jobs(
         &self,
         _o: grpc::RequestOptions,
@@ -122,19 +106,19 @@ impl gateway_grpc::Gateway for MockGatewayClient {
         )
     }
 
-    fn list_workflows(
+    fn resolve_incident(
         &self,
         _o: grpc::RequestOptions,
-        _p: gateway::ListWorkflowsRequest,
-    ) -> grpc::SingleResponse<gateway::ListWorkflowsResponse> {
+        _p: gateway::ResolveIncidentRequest,
+    ) -> grpc::SingleResponse<gateway::ResolveIncidentResponse> {
         unimplemented!()
     }
 
-    fn get_workflow(
+    fn set_variables(
         &self,
         _o: grpc::RequestOptions,
-        _p: gateway::GetWorkflowRequest,
-    ) -> grpc::SingleResponse<gateway::GetWorkflowResponse> {
+        _p: gateway::SetVariablesRequest,
+    ) -> grpc::SingleResponse<gateway::SetVariablesResponse> {
         unimplemented!()
     }
 }

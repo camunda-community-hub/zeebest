@@ -400,7 +400,7 @@ mod test {
                 (JobResult::Complete { variables: None }, 1i64),
                 (
                     JobResult::Fail {
-                        error_message: None
+                        error_message: Some("Job Handler Panicked.".to_string())
                     },
                     2i64
                 ),

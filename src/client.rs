@@ -73,20 +73,19 @@ pub struct Client {
 impl Client {
     /// Construct a new `Client` that connects to a broker with `host` and `port`.
     pub fn new(host: &str, port: u16) -> Result<Self, Error> {
-        let config = Default::default();
-        let gateway_client = Arc::new(
-            GatewayClient::new_plain(host.as_ref(), port, config)
-                .map_err(|e| Error::GatewayError(e))?,
-        );
-        Ok(Self { gateway_client })
+        GatewayClient::new_plain(host, port, Default::default())
+            .map_err(|e| Error::GatewayError(e))
+            .map(Arc::new)
+            .map(|gateway_client| Client { gateway_client })
     }
 
     /// Get the topology. The returned struct is similar to what is printed when running `zbctl status`.
     pub fn topology(&self) -> impl Future<Item = Topology, Error = Error> {
-            self.gateway_client.topology(Default::default(), Default::default())
-                .drop_metadata()
-                .map(From::from)
-                .map_err(|e| Error::TopologyError(e))
+        self.gateway_client
+            .topology(Default::default(), Default::default())
+            .drop_metadata()
+            .map(From::from)
+            .map_err(|e| Error::TopologyError(e))
     }
 
     /// deploy a single bpmn workflow
@@ -94,43 +93,25 @@ impl Client {
         &self,
         workflow_name: S,
         workflow_definition: Vec<u8>,
-    ) -> impl Future<Item = DeployWorkflowResponse, Error = Error> {
-        let options = Default::default();
-        let mut workflow_request_object = WorkflowRequestObject::default();
-
+    ) -> impl Future<Item = DeployedWorkflows, Error = Error> {
         // check for name ending in bpmn, and add it if missing
         let mut workflow_name = workflow_name.into();
         if !workflow_name.ends_with(".bpmn") {
             workflow_name.push_str(".bpmn");
         }
-
+        // construct request
+        let mut workflow_request_object = WorkflowRequestObject::default();
         workflow_request_object.set_name(workflow_name.into());
         workflow_request_object.set_definition(workflow_definition);
         let mut deploy_workflow_request = DeployWorkflowRequest::default();
         deploy_workflow_request
             .set_workflows(protobuf::RepeatedField::from(vec![workflow_request_object]));
-        let grpc_response: grpc::SingleResponse<_> = self
-            .gateway_client
-            .deploy_workflow(options, deploy_workflow_request);
-        grpc_response
+        // deploy the bpmn workflow
+        self.gateway_client
+            .deploy_workflow(Default::default(), deploy_workflow_request)
             .drop_metadata()
             .map_err(|e| Error::DeployWorkflowError(e))
-    }
-
-    /// deploy a collection of workflows
-    pub fn deploy_workflows(
-        &self,
-        workflow_requests: Vec<WorkflowRequestObject>,
-    ) -> impl Future<Item = DeployWorkflowResponse, Error = Error> {
-        let options = Default::default();
-        let mut deploy_workflow_request = DeployWorkflowRequest::default();
-        deploy_workflow_request.set_workflows(protobuf::RepeatedField::from(workflow_requests));
-        let grpc_response: grpc::SingleResponse<_> = self
-            .gateway_client
-            .deploy_workflow(options, deploy_workflow_request);
-        grpc_response
-            .drop_metadata()
-            .map_err(|e| Error::DeployWorkflowError(e))
+            .map(From::from)
     }
 
     /// create a workflow instance with a payload
@@ -320,6 +301,40 @@ impl From<gateway::Partition_PartitionBrokerRole> for BrokerRole {
         match pbr {
             gateway::Partition_PartitionBrokerRole::FOLLOWER => BrokerRole::FOLLOWER,
             gateway::Partition_PartitionBrokerRole::LEADER => BrokerRole::LEADER,
+        }
+    }
+}
+
+#[derive(Debug)]
+pub struct DeployedWorkflows {
+    pub key: i64,
+    pub workflows: Vec<Workflow>,
+}
+
+impl From<gateway::DeployWorkflowResponse> for DeployedWorkflows {
+    fn from(dwr: gateway::DeployWorkflowResponse) -> Self {
+        Self {
+            key: dwr.key,
+            workflows: dwr.workflows.into_iter().map(From::from).collect(),
+        }
+    }
+}
+
+#[derive(Debug)]
+pub struct Workflow {
+    pub bpmn_process_id: String,
+    pub version: i32,
+    pub workflow_key: i64,
+    pub resource_name: String,
+}
+
+impl From<gateway::WorkflowMetadata> for Workflow {
+    fn from(wm: gateway::WorkflowMetadata) -> Self {
+        Self {
+            bpmn_process_id: wm.bpmnProcessId,
+            version: wm.version,
+            workflow_key: wm.workflowKey,
+            resource_name: wm.resourceName,
         }
     }
 }

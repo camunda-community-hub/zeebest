@@ -11,6 +11,7 @@ fn main() {
     // this is your work function - this one always panics!
     let handler = move |_payload| {
         panic!();
+        #[allow(unreachable_code)]
         Ok(JobResult::Complete { variables: None })
     };
 
