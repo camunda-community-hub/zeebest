@@ -94,15 +94,11 @@ impl Client {
         workflow_name: S,
         workflow_definition: Vec<u8>,
     ) -> impl Future<Item = DeployedWorkflows, Error = Error> {
-        // check for name ending in bpmn, and add it if missing
-        let mut workflow_name = workflow_name.into();
-        if !workflow_name.ends_with(".bpmn") {
-            workflow_name.push_str(".bpmn");
-        }
         // construct request
         let mut workflow_request_object = WorkflowRequestObject::default();
         workflow_request_object.set_name(workflow_name.into());
         workflow_request_object.set_definition(workflow_definition);
+        workflow_request_object.set_field_type(gateway::WorkflowRequestObject_ResourceType::BPMN);
         let mut deploy_workflow_request = DeployWorkflowRequest::default();
         deploy_workflow_request
             .set_workflows(protobuf::RepeatedField::from(vec![workflow_request_object]));
