@@ -72,7 +72,7 @@ pub struct Client {
 
 impl Client {
     /// Construct a new `Client` that connects to a broker with `host` and `port`.
-    pub fn new<S: AsRef<str>>(host: S, port: u16) -> Result<Self, Error> {
+    pub fn new(host: &str, port: u16) -> Result<Self, Error> {
         let config = Default::default();
         let gateway_client = Arc::new(
             GatewayClient::new_plain(host.as_ref(), port, config)
@@ -82,28 +82,12 @@ impl Client {
     }
 
     /// Get the topology. The returned struct is similar to what is printed when running `zbctl status`.
-    pub fn topology(&self) -> impl Future<Item = TopologyResponse, Error = Error> {
-        let options = Default::default();
-        let topology_request = Default::default();
-        let grpc_response: grpc::SingleResponse<_> =
-            self.gateway_client.topology(options, topology_request);
-        grpc_response
-            .drop_metadata()
-            .map_err(|e| Error::TopologyError(e))
+    pub fn topology(&self) -> impl Future<Item = Topology, Error = Error> {
+            self.gateway_client.topology(Default::default(), Default::default())
+                .drop_metadata()
+                .map(From::from)
+                .map_err(|e| Error::TopologyError(e))
     }
-
-    //    /// list the workflows
-    //    pub fn list_workflows<I>(&self) -> impl Future<Item = Vec<WorkflowMetadata>, Error = Error> {
-    //        let options = Default::default();
-    //        let list_workflows_request = Default::default();
-    //        let grpc_response: grpc::SingleResponse<ListWorkflowsResponse> = self
-    //            .gateway_client
-    //            .list_workflows(options, list_workflows_request);
-    //        grpc_response
-    //            .drop_metadata()
-    //            .map(|r| r.workflows.into_vec())
-    //            .map_err(|e| Error::ListWorkflowsError(e))
-    //    }
 
     /// deploy a single bpmn workflow
     pub fn deploy_bpmn_workflow<S: Into<String>>(
@@ -273,5 +257,69 @@ impl Client {
             self.gateway_client.clone(),
             handler,
         )
+    }
+}
+
+use crate::gateway;
+
+#[derive(Debug)]
+pub struct Topology {
+    pub brokers: Vec<BrokerInfo>,
+}
+
+impl From<gateway::TopologyResponse> for Topology {
+    fn from(tr: gateway::TopologyResponse) -> Self {
+        Self {
+            brokers: tr.brokers.into_iter().map(From::from).collect(),
+        }
+    }
+}
+
+#[derive(Debug)]
+pub struct BrokerInfo {
+    pub node_id: i32,
+    pub host: String,
+    pub port: i32,
+    pub partitions: Vec<Partition>,
+}
+
+impl From<gateway::BrokerInfo> for BrokerInfo {
+    fn from(bi: gateway::BrokerInfo) -> Self {
+        Self {
+            node_id: bi.nodeId,
+            host: bi.host,
+            port: bi.port,
+            partitions: bi.partitions.into_iter().map(From::from).collect(),
+        }
+    }
+}
+
+#[derive(Debug)]
+pub struct Partition {
+    pub partition_id: i32,
+    pub role: BrokerRole,
+}
+
+impl From<gateway::Partition> for Partition {
+    fn from(p: gateway::Partition) -> Self {
+        Self {
+            partition_id: p.partitionId,
+            role: p.role.into(),
+        }
+    }
+}
+
+#[derive(Debug)]
+pub enum BrokerRole {
+    LEADER = 0,
+    FOLLOWER = 1,
+}
+
+impl From<gateway::Partition_PartitionBrokerRole> for BrokerRole {
+    fn from(pbr: gateway::Partition_PartitionBrokerRole) -> Self {
+        match pbr {
+            gateway::Partition_PartitionBrokerRole::FOLLOWER => BrokerRole::FOLLOWER,
+            gateway::Partition_PartitionBrokerRole::LEADER => BrokerRole::LEADER,
+        }
     }
 }
