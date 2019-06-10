@@ -1,6 +1,7 @@
 use crate::gateway;
 use crate::gateway_grpc;
-use futures::{Future, Poll, Stream};
+use crate::Error;
+use futures::{Future, IntoFuture, Poll, Stream};
 use std::sync::atomic::{AtomicU16, Ordering};
 use std::sync::Arc;
 
@@ -13,9 +14,9 @@ pub enum PanicOption {
 
 /// A result that describes the output of a job.
 #[derive(Clone, Debug, PartialEq)]
-enum JobResult {
-    Complete { payload: Option<String> },
-    Fail,
+pub enum JobResult {
+    Complete { variables: Option<String> },
+    Fail { error_message: Option<String> },
     NoAction,
 }
 
@@ -45,14 +46,6 @@ where
     }
 }
 
-#[derive(Debug, Fail)]
-enum Error {
-    #[fail(display = "Grpc Error")]
-    GrpcError(grpc::Error),
-    #[fail(display = "Job Error: {}", _0)]
-    JobError(String),
-}
-
 /// The `JobWorker` describes what a job type and contains a job handler function to call when jobs
 /// are ready to be worked on. The job worker has a maximum number of concurrent jobs that is
 /// controlled by an atomic, consistent counter. When a job handler returns, the job worker will
@@ -63,10 +56,11 @@ enum Error {
 /// The only method will poll for jobs, and if there are any, will start processing jobs. It will
 /// only activate up to the maximum number of concurrent jobs allowed. When jobs complete, the counter
 /// is updated.
-struct JobWorker<H, F>
+pub struct JobWorker<H, F>
 where
     H: Fn(gateway::ActivatedJob) -> F + std::panic::RefUnwindSafe,
-    F: Future<Item = JobResult, Error = String> + std::panic::UnwindSafe,
+    F: IntoFuture<Item = JobResult, Error = String> + std::panic::UnwindSafe,
+    <F as IntoFuture>::Future: std::panic::UnwindSafe,
 {
     worker: String,
     job_type: String,
@@ -81,7 +75,8 @@ where
 impl<H, F> JobWorker<H, F>
 where
     H: Fn(gateway::ActivatedJob) -> F + std::panic::RefUnwindSafe,
-    F: Future<Item = JobResult, Error = String> + std::panic::UnwindSafe,
+    F: IntoFuture<Item = JobResult, Error = String> + std::panic::UnwindSafe,
+    <F as IntoFuture>::Future: std::panic::UnwindSafe,
 {
     pub fn new(
         worker: String,
@@ -125,19 +120,16 @@ where
 
         // assert on an unreachable edge case
         assert!(
-            current_amount < self.max_amount,
+            current_amount <= self.max_amount,
             "current number of jobs exceeds allowed number of running jobs"
         );
 
         // also inspect the job count, so as to only request a number of jobs equal to available slots
-        let next_amount = self.max_amount - current_amount;
-        // increment current amount by next amount. This effectively locks the available job slots.
-        // This is needed in case the requests are very slow, and/or do not return in order they were sent.
-        current_number_of_jobs.fetch_add(next_amount, Ordering::SeqCst);
+        let next_max_jobs_to_activate = self.max_amount - current_amount;
 
         // construct a request - this is all grpc stuff
         let mut activate_jobs_request = gateway::ActivateJobsRequest::default();
-        activate_jobs_request.set_amount(next_amount as i32); // TODO: make this configurable
+        activate_jobs_request.set_maxJobsToActivate(next_max_jobs_to_activate as i32); // TODO: make this configurable
         activate_jobs_request.set_timeout(self.timeout);
         activate_jobs_request.set_worker(self.worker.clone());
         activate_jobs_request.set_field_type(self.job_type.clone());
@@ -151,7 +143,7 @@ where
         // drop the unnecessary grpc metadata, and convert the error
         let grpc_stream = grpc_response
             .drop_metadata()
-            .map_err(|e| Error::GrpcError(e));
+            .map_err(|e| Error::ActivateJobError(e));
 
         // make a copy of the panic option
         let panic_option = self.panic_option;
@@ -167,13 +159,7 @@ where
                     job_count < (std::u16::MAX as usize),
                     "maximum job count exceeded maximum number of allowed concurrent jobs"
                 );
-                // the counter has already been incremented, but there may be fewer jobs returned.
-                // Decrease the counter if the difference is greater than zero, this opens
-                // available jobs slots.
-                let difference = next_amount - (job_count as u16);
-                if difference > 0 {
-                    current_number_of_jobs.fetch_sub(difference, Ordering::SeqCst);
-                }
+                current_number_of_jobs.fetch_add(job_count as u16, Ordering::SeqCst);
                 Ok(jobs)
             })
             // insert a reference to the job handler fn into the stream
@@ -185,15 +171,18 @@ where
                     let job_key = a.get_key();
                     let retries = a.get_retries();
                     let handler = handler.clone();
-                    futures::future::lazy(move || (handler)(a)) // call the handler with the `ActivatedJob` data
+                    futures::future::lazy(move || (handler)(a).into_future()) // call the handler with the `ActivatedJob` data
                         // catch any panic, and handle the panic according to the panic option
                         .catch_unwind()
                         .then(move |r: Result<Result<JobResult, _>, _>| match r {
                             // all non panics are simply unwrapped to the underlying result
                             Ok(job_result) => job_result.map_err(|e| Error::JobError(e)),
                             // panic option is matched in case of a panic
-                            Err(_panic_error) => match panic_option {
-                                PanicOption::FailJobOnPanic => Ok(JobResult::Fail),
+                            Err(_) => match panic_option {
+                                // TODO: capture the panic stacktrace and return it with the fail job request
+                                PanicOption::FailJobOnPanic => Ok(JobResult::Fail {
+                                    error_message: Some("Job Handler Panicked.".to_string()),
+                                }),
                                 PanicOption::DoNothingOnPanic => Ok(JobResult::NoAction),
                             },
                         })
@@ -218,183 +207,49 @@ where
                     JobResult::NoAction => {
                         JobResultFuture::NoAction(futures::future::ok((result, job_key)))
                     }
-                    JobResult::Fail => {
+                    JobResult::Fail { error_message } => {
                         let options = Default::default();
                         let mut fail_request = gateway::FailJobRequest::default();
                         fail_request.set_jobKey(job_key);
                         fail_request.set_retries(retries - 1);
+                        if let Some(error_message) = error_message {
+                            fail_request.set_errorMessage(error_message);
+                        }
                         JobResultFuture::Fail(
                             gateway_client
                                 .fail_job(options, fail_request)
                                 .drop_metadata()
-                                .map_err(|e| Error::GrpcError(e))
+                                .map_err(|e| Error::FailJobError(e))
                                 .map(move |_| (cloned_result_complete, job_key)),
                         )
                     }
-                    JobResult::Complete { payload } => {
+                    JobResult::Complete { variables } => {
                         let options = Default::default();
                         let mut complete_request = gateway::CompleteJobRequest::default();
                         complete_request.set_jobKey(job_key);
-                        if let Some(payload) = payload {
-                            complete_request.set_payload(payload.clone())
+                        if let Some(variables) = variables {
+                            complete_request.set_variables(variables)
                         }
                         JobResultFuture::Complete(
                             gateway_client
                                 .complete_job(options, complete_request)
                                 .drop_metadata()
-                                .map_err(|e| Error::GrpcError(e))
+                                .map_err(|e| Error::CompleteJobError(e))
                                 .map(move |_| (cloned_result_fail, job_key)),
                         )
                     }
                 }
             });
 
-        Box::new(jobs_stream)
-    }
-}
-
-struct MockGatewayClient {
-    pub jobs: Vec<i64>,
-}
-
-impl gateway_grpc::Gateway for MockGatewayClient {
-    fn topology(
-        &self,
-        o: grpc::RequestOptions,
-        p: gateway::TopologyRequest,
-    ) -> grpc::SingleResponse<gateway::TopologyResponse> {
-        unimplemented!()
-    }
-
-    fn deploy_workflow(
-        &self,
-        o: grpc::RequestOptions,
-        p: gateway::DeployWorkflowRequest,
-    ) -> grpc::SingleResponse<gateway::DeployWorkflowResponse> {
-        unimplemented!()
-    }
-
-    fn publish_message(
-        &self,
-        o: grpc::RequestOptions,
-        p: gateway::PublishMessageRequest,
-    ) -> grpc::SingleResponse<gateway::PublishMessageResponse> {
-        unimplemented!()
-    }
-
-    fn create_job(
-        &self,
-        o: grpc::RequestOptions,
-        p: gateway::CreateJobRequest,
-    ) -> grpc::SingleResponse<gateway::CreateJobResponse> {
-        unimplemented!()
-    }
-
-    fn update_job_retries(
-        &self,
-        o: grpc::RequestOptions,
-        p: gateway::UpdateJobRetriesRequest,
-    ) -> grpc::SingleResponse<gateway::UpdateJobRetriesResponse> {
-        unimplemented!()
-    }
-
-    fn fail_job(
-        &self,
-        o: grpc::RequestOptions,
-        p: gateway::FailJobRequest,
-    ) -> grpc::SingleResponse<gateway::FailJobResponse> {
-        let item: Box<
-            dyn Future<Item = (gateway::FailJobResponse, grpc::Metadata), Error = grpc::Error>
-                + Send
-                + 'static,
-        > = Box::new(futures::future::ok((
-            gateway::FailJobResponse::default(),
-            grpc::Metadata::default(),
-        )));
-        grpc::SingleResponse::new(futures::future::ok((grpc::Metadata::default(), item)))
-    }
-
-    fn complete_job(
-        &self,
-        o: grpc::RequestOptions,
-        p: gateway::CompleteJobRequest,
-    ) -> grpc::SingleResponse<gateway::CompleteJobResponse> {
-        let item: Box<dyn Future<Item = _, Error = _> + Send + 'static> = Box::new(
-            futures::future::ok((gateway::CompleteJobResponse::default(), Default::default())),
-        );
-        grpc::SingleResponse::new(futures::future::ok((Default::default(), item)))
-    }
-
-    fn create_workflow_instance(
-        &self,
-        o: grpc::RequestOptions,
-        p: gateway::CreateWorkflowInstanceRequest,
-    ) -> grpc::SingleResponse<gateway::CreateWorkflowInstanceResponse> {
-        unimplemented!()
-    }
-
-    fn cancel_workflow_instance(
-        &self,
-        o: grpc::RequestOptions,
-        p: gateway::CancelWorkflowInstanceRequest,
-    ) -> grpc::SingleResponse<gateway::CancelWorkflowInstanceResponse> {
-        unimplemented!()
-    }
-
-    fn update_workflow_instance_payload(
-        &self,
-        o: grpc::RequestOptions,
-        p: gateway::UpdateWorkflowInstancePayloadRequest,
-    ) -> grpc::SingleResponse<gateway::UpdateWorkflowInstancePayloadResponse> {
-        unimplemented!()
-    }
-
-    fn activate_jobs(
-        &self,
-        o: grpc::RequestOptions,
-        p: gateway::ActivateJobsRequest,
-    ) -> grpc::StreamingResponse<gateway::ActivateJobsResponse> {
-        let activated_jobs: Vec<_> = self
-            .jobs
-            .iter()
-            .map(|job_key| {
-                let mut activated_job = gateway::ActivatedJob::default();
-                activated_job.set_retries(5);
-                activated_job.set_key(*job_key);
-                activated_job
-            })
-            .collect();
-        let mut response = gateway::ActivateJobsResponse::default();
-        response.set_jobs(activated_jobs.into());
-        let activated_jobs = futures::stream::iter_ok(vec![response]);
-        grpc::StreamingResponse::metadata_and_stream_and_trailing_metadata(
-            Default::default(),
-            activated_jobs,
-            futures::future::ok(Default::default()),
-        )
-    }
-
-    fn list_workflows(
-        &self,
-        o: grpc::RequestOptions,
-        p: gateway::ListWorkflowsRequest,
-    ) -> grpc::SingleResponse<gateway::ListWorkflowsResponse> {
-        unimplemented!()
-    }
-
-    fn get_workflow(
-        &self,
-        o: grpc::RequestOptions,
-        p: gateway::GetWorkflowRequest,
-    ) -> grpc::SingleResponse<gateway::GetWorkflowResponse> {
-        unimplemented!()
+        jobs_stream
     }
 }
 
 #[cfg(test)]
 mod test {
     use crate::gateway;
-    use crate::worker::{JobResult, JobWorker, MockGatewayClient, PanicOption};
+    use crate::gateway_mock::MockGatewayClient;
+    use crate::worker::{JobResult, JobWorker, PanicOption};
     use futures::{Future, Stream};
     use std::sync::Arc;
 
@@ -403,7 +258,7 @@ mod test {
         let mock_gateway_client = Arc::new(MockGatewayClient { jobs: vec![1, 2] });
 
         let handler = |_aj: gateway::ActivatedJob| {
-            futures::future::ok::<JobResult, String>(JobResult::Complete { payload: None })
+            futures::future::ok::<JobResult, String>(JobResult::Complete { variables: None })
         };
 
         let mut job_worker = JobWorker::new(
@@ -425,8 +280,8 @@ mod test {
         assert_eq!(
             results,
             vec![
-                (JobResult::Complete { payload: None }, 1i64),
-                (JobResult::Complete { payload: None }, 2i64)
+                (JobResult::Complete { variables: None }, 1i64),
+                (JobResult::Complete { variables: None }, 2i64)
             ]
         );
     }
@@ -435,8 +290,11 @@ mod test {
     fn failing_jobs() {
         let mock_gateway_client = Arc::new(MockGatewayClient { jobs: vec![1, 2] });
 
-        let handler =
-            |_aj: gateway::ActivatedJob| futures::future::ok::<JobResult, String>(JobResult::Fail);
+        let handler = |_aj: gateway::ActivatedJob| {
+            futures::future::ok::<JobResult, String>(JobResult::Fail {
+                error_message: None,
+            })
+        };
 
         let mut job_worker = JobWorker::new(
             "rusty-worker".to_string(),
@@ -456,7 +314,20 @@ mod test {
 
         assert_eq!(
             results,
-            vec![(JobResult::Fail, 1i64), (JobResult::Fail, 2i64)]
+            vec![
+                (
+                    JobResult::Fail {
+                        error_message: None
+                    },
+                    1i64
+                ),
+                (
+                    JobResult::Fail {
+                        error_message: None
+                    },
+                    2i64
+                )
+            ]
         );
     }
 
@@ -468,7 +339,7 @@ mod test {
             if aj.key == 1 {
                 panic!("gahh!");
             }
-            futures::future::ok::<JobResult, String>(JobResult::Complete { payload: None })
+            futures::future::ok::<JobResult, String>(JobResult::Complete { variables: None })
         };
 
         let mut job_worker = JobWorker::new(
@@ -491,7 +362,7 @@ mod test {
             results,
             vec![
                 (JobResult::NoAction, 1i64),
-                (JobResult::Complete { payload: None }, 2i64)
+                (JobResult::Complete { variables: None }, 2i64)
             ]
         );
     }
@@ -504,7 +375,7 @@ mod test {
             if aj.key == 2 {
                 panic!("gahh!");
             }
-            futures::future::ok::<JobResult, String>(JobResult::Complete { payload: None })
+            futures::future::ok::<JobResult, String>(JobResult::Complete { variables: None })
         };
 
         let mut job_worker = JobWorker::new(
@@ -526,8 +397,13 @@ mod test {
         assert_eq!(
             results,
             vec![
-                (JobResult::Complete { payload: None }, 1i64),
-                (JobResult::Fail, 2i64),
+                (JobResult::Complete { variables: None }, 1i64),
+                (
+                    JobResult::Fail {
+                        error_message: None
+                    },
+                    2i64
+                ),
             ]
         );
     }

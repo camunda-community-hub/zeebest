@@ -15,13 +15,13 @@ fn create_workflow_instance_with_optional_string_payload<S: Into<String>, J: Ser
     let bpmn_process_id = bpmn_process_id.into();
     futures::future::result(payload_string)
         .map_err(|e| Error::JsonError(e))
-        .and_then(move |payload| {
+        .and_then(move |variables| {
             let options = Default::default();
             let mut request = gateway::CreateWorkflowInstanceRequest::default();
             request.set_version(version);
             request.set_bpmnProcessId(bpmn_process_id);
-            if let Some(payload) = payload {
-                request.set_payload(payload);
+            if let Some(variables) = variables {
+                request.set_variables(variables);
             }
             let grpc_response: grpc::SingleResponse<_> =
                 gateway_client.create_workflow_instance(options, request);

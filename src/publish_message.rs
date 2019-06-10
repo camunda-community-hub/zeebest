@@ -23,11 +23,11 @@ fn publish_message_with_optional_string_payload<
     let message_id = message_id.into();
     futures::future::result(payload)
         .map_err(|e| Error::JsonError(e))
-        .and_then(move |payload| {
+        .and_then(move |variables| {
             let options = Default::default();
             let mut publish_message_request = gateway::PublishMessageRequest::default();
-            if let Some(payload) = payload {
-                publish_message_request.set_payload(payload);
+            if let Some(variables) = variables {
+                publish_message_request.set_variables(variables);
             }
             publish_message_request.set_correlationKey(correlation_key);
             publish_message_request.set_messageId(message_id);

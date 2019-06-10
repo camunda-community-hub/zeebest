@@ -3,13 +3,6 @@ use crate::gateway_grpc::Gateway;
 use crate::{gateway_grpc, Error};
 use futures::Future;
 
-#[derive(Clone, Debug)]
-pub struct FailJobData {
-    pub job_key: i64,
-    pub retries: i32,
-    pub reason: Option<String>,
-}
-
 pub(crate) fn fail_job(
     gateway_client: &gateway_grpc::GatewayClient,
     job_key: i64,

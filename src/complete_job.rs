@@ -5,7 +5,7 @@ use futures::Future;
 #[derive(Clone, Debug)]
 pub struct CompletedJobData {
     pub job_key: i64,
-    pub payload: Option<String>,
+    pub variables: Option<String>,
 }
 
 /// Get a future representing the complete job rpc
@@ -17,8 +17,8 @@ pub(crate) fn complete_job(
     let options = Default::default();
     let mut complete_job_request = gateway::CompleteJobRequest::default();
     complete_job_request.set_jobKey(completed_job_data.job_key);
-    if let Some(s) = completed_job_data.payload {
-        complete_job_request.set_payload(s);
+    if let Some(variables) = completed_job_data.variables {
+        complete_job_request.set_variables(variables);
     };
     client
         .complete_job(options, complete_job_request)
