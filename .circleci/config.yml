@@ -12,7 +12,8 @@ jobs:
           name: Version information
           command: rustc --version; cargo --version; rustup --version
       - run:
-          - command: apt update && apt install protobuf-compiler -y
+          - name: Install protoc
+          - command: apt update; apt install protobuf-compiler -y
       - run:
           name: build
           command: cargo build
