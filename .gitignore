@@ -1,7 +1,3 @@
 /.idea
 /target
 **/*.rs.bk
-
-# generated protobuf code
-src/gateway.rs
-src/gateway_grpc.rs
