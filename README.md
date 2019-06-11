@@ -9,8 +9,33 @@ Get started by by spinning up a zeebe broker locally and deploy a workflow with:
 
 This crate offers a single `Client` type that comes with a plethora of methods for interacting with the zeebe gateway.
 
-Most methods are standard zeebe operations. The `worker` method is a bit more intersting that the other. It exposes a nice way
-to run a job handler for activated jobs.
+Most methods are standard zeebe operations. The `worker` method is a bit more interesting that the other. 
+
+Workers may activate and process jobs with a handler. A worker has a max number of concurrent jobs. The worker will do 
+its best to only request jobs from the broker up to the maximum amount. Each job handler may complete or fail a job.
+
+Workers currently will only poll the gateway manually, so you will need to use another system to process jobs periodically. 
+`tokio::Interval` does a pretty good job of this.
+
+```rust
+let client = Client::new("127.0.0.1", 26500).unwrap();
+
+let handler = move |activated_job| { 
+    Ok(JobResult::Complete { variables: None })
+};
+
+let mut worker = client.worker(
+    "rusty-worker",
+    "payment-service",
+    10000, // timeout
+    2, // max number of concurrent jobs
+    PanicOption::FailJobOnPanic,
+    handler,
+);
+
+// returns a stream of job results
+let job_stream = worker.activate_and_process_job();
+```
 
 ## Futures
 
@@ -31,17 +56,15 @@ Watch https://areweasyncyet.rs/ for updates.
  
 ## Workers
 
-Workers may activate and process jobs with a handler. A worker has a max number of concurrent jobs. The worker will do 
-its best to only request jobs from the broker up to the maximum amount. Each job handler may complete or fail a job.
 
-Workers currently will only poll the gateway manually, so you will need to use another system to process jobs periodically. 
-`tokio::Interval` does a pretty good job of this.
 
 ## Zeebe Versions
 
-This crate will try to release with new releases of [zeebe][zeebe]. This client is tied to the gateway protobuf file. The
-protobuf file is copied from the main zeebe repo, and the protc compiler to executed on the file to generate the rust 
-bindings at build-time. When zeebe stabilizes to 1.0.0 this may matter less. In the mean time, use the version of `zeebest`
+This crate will attempt to release with [zeebe][zeebe]. This library is coupled to zeebe via the gateway protobuf file. 
+This service contract will likely only change between minor patches and I believe this crate will be easiest to use
+if the minor version of this crate matches zeebe. 
+
+When zeebe stabilizes to 1.0.0 this may matter less. In the mean time, use the version of `zeebest`
 that matches the minor patch version of your zeebe version e.g. 0.18.x. 
 
 ## Todos
