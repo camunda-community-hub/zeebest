@@ -1,5 +1,5 @@
-use crate::gateway_grpc::*;
 use crate::gateway;
+use crate::gateway_grpc::*;
 use futures::{Future, IntoFuture, Stream};
 use grpc::ClientStubExt;
 use std::sync::Arc;
@@ -97,7 +97,8 @@ impl Client {
 
     /// create a workflow instance with a payload
     pub fn create_workflow_instance(
-        & self, workflow_instance: WorkflowInstance,
+        &self,
+        workflow_instance: WorkflowInstance,
     ) -> impl Future<Item = CreatedWorkflowInstance, Error = Error> {
         self.gateway_client
             .create_workflow_instance(Default::default(), workflow_instance.into())
@@ -111,7 +112,8 @@ impl Client {
         &self,
         jobs_config: ActivateJobs,
     ) -> impl Stream<Item = ActivatedJobs, Error = Error> + Send {
-        self.gateway_client.activate_jobs(Default::default(), jobs_config.into())
+        self.gateway_client
+            .activate_jobs(Default::default(), jobs_config.into())
             .drop_metadata()
             .map_err(|e| Error::ActivateJobError(e))
             .map(From::from)
@@ -147,8 +149,12 @@ impl Client {
     }
 
     /// Publish a message
-    pub fn publish_message(&self, publish_message: PublishMessage) -> impl Future<Item = (), Error = Error> {
-        self.gateway_client.publish_message(Default::default(), publish_message.into())
+    pub fn publish_message(
+        &self,
+        publish_message: PublishMessage,
+    ) -> impl Future<Item = (), Error = Error> {
+        self.gateway_client
+            .publish_message(Default::default(), publish_message.into())
             .drop_metadata()
             .map_err(|e| Error::PublishMessageError(e))
             .map(|_| ())
@@ -298,8 +304,8 @@ impl From<gateway::CreateWorkflowInstanceResponse> for CreatedWorkflowInstance {
 }
 
 pub enum WorkflowId {
-    BpmnProcessId(String, WorkflowVersion,),
-    WorkflowKey(i64,)
+    BpmnProcessId(String, WorkflowVersion),
+    WorkflowKey(i64),
 }
 
 pub struct WorkflowInstance {
@@ -308,7 +314,10 @@ pub struct WorkflowInstance {
 }
 
 impl WorkflowInstance {
-    pub fn workflow_instance_with_bpmn_process<S: Into<String>>(bpmn_process_id: S, version: WorkflowVersion) -> Self {
+    pub fn workflow_instance_with_bpmn_process<S: Into<String>>(
+        bpmn_process_id: S,
+        version: WorkflowVersion,
+    ) -> Self {
         WorkflowInstance {
             id: WorkflowId::BpmnProcessId(bpmn_process_id.into(), version),
             variables: None,
@@ -323,7 +332,7 @@ impl WorkflowInstance {
     }
 
     pub fn variables<S: Serialize>(mut self, variables: &S) -> Result<Self, serde_json::Error> {
-        serde_json::to_string(variables).map(move|v| {
+        serde_json::to_string(variables).map(move |v| {
             self.variables = Some(v);
             self
         })
@@ -337,10 +346,10 @@ impl Into<gateway::CreateWorkflowInstanceRequest> for WorkflowInstance {
             WorkflowId::BpmnProcessId(bpmn_process_id, version) => {
                 request.set_version(version.into());
                 request.set_bpmnProcessId(bpmn_process_id);
-            },
+            }
             WorkflowId::WorkflowKey(key) => {
                 request.set_workflowKey(key);
-            },
+            }
         }
         if let Some(variables) = self.variables {
             request.set_variables(variables);
@@ -358,11 +367,7 @@ pub struct PublishMessage {
 }
 
 impl PublishMessage {
-    pub fn new<
-        S1: Into<String>,
-        S2: Into<String>,
-        S3: Into<String>,
-    >(
+    pub fn new<S1: Into<String>, S2: Into<String>, S3: Into<String>>(
         name: S1,
         correlation_key: S2,
         time_to_live: i64,
@@ -380,10 +385,10 @@ impl PublishMessage {
     pub fn variables<S: Serialize>(mut self, variables: &S) -> Result<Self, Error> {
         serde_json::to_string(variables)
             .map_err(|e| Error::JsonError(e))
-            .map(move|v| {
-            self.variables = Some(v);
-            self
-        })
+            .map(move |v| {
+                self.variables = Some(v);
+                self
+            })
     }
 }
 
@@ -418,7 +423,7 @@ impl CompleteJob {
     pub fn variables<S: Serialize>(mut self, variables: &S) -> Result<Self, Error> {
         serde_json::to_string(variables)
             .map_err(|e| Error::JsonError(e))
-            .map(move|v| {
+            .map(move |v| {
                 self.variables = Some(v);
                 self
             })
@@ -445,7 +450,12 @@ pub struct ActivateJobs {
 }
 
 impl ActivateJobs {
-    pub fn new<S1: Into<String>, S2: Into<String>>(worker: S1, job_type: S2, timeout: i64, max_jobs_to_activate: i32) -> Self {
+    pub fn new<S1: Into<String>, S2: Into<String>>(
+        worker: S1,
+        job_type: S2,
+        timeout: i64,
+        max_jobs_to_activate: i32,
+    ) -> Self {
         ActivateJobs {
             worker: worker.into(),
             job_type: job_type.into(),
@@ -468,15 +478,13 @@ impl Into<gateway::ActivateJobsRequest> for ActivateJobs {
 
 #[derive(Debug)]
 pub struct ActivatedJobs {
-    activated_jobs: Vec<ActivatedJob>
+    activated_jobs: Vec<ActivatedJob>,
 }
 
 impl From<gateway::ActivateJobsResponse> for ActivatedJobs {
     fn from(ajr: gateway::ActivateJobsResponse) -> Self {
         let activated_jobs: Vec<ActivatedJob> = ajr.jobs.into_iter().map(From::from).collect();
-        ActivatedJobs {
-            activated_jobs,
-        }
+        ActivatedJobs { activated_jobs }
     }
 }
 
