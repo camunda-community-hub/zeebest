@@ -1,20 +1,20 @@
+//! An unofficial [zeebe](https://zeebe.io/) client.
+//!
+//! This crate contains a client for interacting with a zeebe cluster. The `Client` contract contains
+//! standard methods for interacting with the cluster like `topology` and `create_workflow_intstance`.
+//! It also supplies a worker for smartly running a job handler function and reporting the results
+//! to the zeebe gateway.
+//!
+
 #[macro_use]
 extern crate failure;
 
-mod activate_and_process_jobs;
-mod activate_jobs;
 mod client;
-mod complete_job;
-mod create_workflow_instance;
-mod fail_job;
 mod gateway;
 mod gateway_grpc;
-mod publish_message;
+#[cfg(test)]
+mod gateway_mock;
+mod worker;
 
-pub use activate_and_process_jobs::{JobError, WorkerConfig};
-pub use activate_jobs::ActivateJobsConfig;
-pub use client::{
-    ActivatedJob, Client, CreateWorkflowInstanceResponse, DeployWorkflowResponse, Error,
-    TopologyResponse, WorkflowMetadata, WorkflowRequestObject, WorkflowVersion,
-};
-pub use complete_job::CompletedJobData;
+pub use client::*;
+pub use worker::*;
