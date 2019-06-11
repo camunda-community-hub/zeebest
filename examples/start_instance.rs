@@ -2,7 +2,7 @@
 extern crate serde_derive;
 
 use futures::Future;
-use zeebest::{Client, WorkflowVersion};
+use zeebest::{Client, WorkflowVersion, WorkflowInstance};
 
 #[derive(Serialize)]
 struct PlaceOrder {
@@ -15,8 +15,12 @@ fn main() {
 
     let place_order = PlaceOrder { order_id: 10 };
 
+    let workflow_instance = WorkflowInstance::workflow_instance_with_bpmn_process("simple-process", WorkflowVersion::Latest)
+        .variables(&place_order)
+        .unwrap();
+
     let result = client
-        .create_workflow_instance("simple-process", WorkflowVersion::Latest, place_order)
+        .create_workflow_instance(workflow_instance)
         .wait()
         .unwrap();
 

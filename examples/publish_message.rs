@@ -2,7 +2,7 @@
 extern crate serde_derive;
 
 use futures::Future;
-use zeebest::Client;
+use zeebest::{Client, PublishMessage};
 
 #[derive(Serialize)]
 struct Payment {
@@ -17,10 +17,14 @@ fn main() {
         total_charged: 25.95,
     };
 
-    let result = client
-        .publish_message("payment-confirmed", "10", 10000, "messageId", payment)
+    let publish_message = PublishMessage::new("payment-confirmed", "10", 10000, "messageId")
+        .variables(&payment)
+        .unwrap();
+
+    client
+        .publish_message(publish_message)
         .wait()
         .unwrap();
 
-    println!("publish message result: {:?}", result);
+    println!("published message");
 }

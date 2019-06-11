@@ -1,25 +1,10 @@
-use crate::complete_job::{complete_job, CompletedJobData};
-pub use crate::gateway::{
-    ActivateJobsResponse, ActivatedJob, CreateWorkflowInstanceRequest,
-    CreateWorkflowInstanceResponse, DeployWorkflowRequest, DeployWorkflowResponse,
-    PublishMessageRequest, TopologyResponse, WorkflowMetadata, WorkflowRequestObject,
-};
 use crate::gateway_grpc::*;
+use crate::gateway;
 use futures::{Future, IntoFuture, Stream};
 use grpc::ClientStubExt;
 use std::sync::Arc;
 
-use crate::create_workflow_instance::{
-    create_workflow_instance_with_no_payload, create_workflow_instance_with_serializable_payload,
-};
-use crate::publish_message::{
-    publish_message_with_no_payload, publish_message_with_serializable_payload,
-};
-
-use crate::activate_jobs::activate_jobs;
-use crate::fail_job::fail_job;
 use crate::worker::{JobResult, JobWorker, PanicOption};
-use crate::ActivateJobsConfig;
 use serde::Serialize;
 
 #[derive(Debug, Fail)]
@@ -95,11 +80,11 @@ impl Client {
         workflow_definition: Vec<u8>,
     ) -> impl Future<Item = DeployedWorkflows, Error = Error> {
         // construct request
-        let mut workflow_request_object = WorkflowRequestObject::default();
+        let mut workflow_request_object = gateway::WorkflowRequestObject::default();
         workflow_request_object.set_name(workflow_name.into());
         workflow_request_object.set_definition(workflow_definition);
         workflow_request_object.set_field_type(gateway::WorkflowRequestObject_ResourceType::BPMN);
-        let mut deploy_workflow_request = DeployWorkflowRequest::default();
+        let mut deploy_workflow_request = gateway::DeployWorkflowRequest::default();
         deploy_workflow_request
             .set_workflows(protobuf::RepeatedField::from(vec![workflow_request_object]));
         // deploy the bpmn workflow
@@ -111,46 +96,37 @@ impl Client {
     }
 
     /// create a workflow instance with a payload
-    pub fn create_workflow_instance<'a, S: Into<String> + 'a, J: Serialize + 'a>(
-        &'a self,
-        bpmn_process_id: S,
-        version: WorkflowVersion,
-        value: J,
-    ) -> impl Future<Item = CreateWorkflowInstanceResponse, Error = Error> + 'a {
-        create_workflow_instance_with_serializable_payload(
-            self.gateway_client.as_ref(),
-            bpmn_process_id,
-            version,
-            value,
-        )
-    }
-    /// create a workflow instance with no payload
-    pub fn create_workflow_instance_no_payload<'a, S: Into<String> + 'a>(
-        &'a self,
-        bpmn_process_id: S,
-        version: WorkflowVersion,
-    ) -> impl Future<Item = CreateWorkflowInstanceResponse, Error = Error> + 'a {
-        create_workflow_instance_with_no_payload(
-            self.gateway_client.as_ref(),
-            bpmn_process_id,
-            version,
-        )
+    pub fn create_workflow_instance(
+        & self, workflow_instance: WorkflowInstance,
+    ) -> impl Future<Item = CreatedWorkflowInstance, Error = Error> {
+        self.gateway_client
+            .create_workflow_instance(Default::default(), workflow_instance.into())
+            .drop_metadata()
+            .map_err(|e| Error::CreateWorkflowInstanceError(e))
+            .map(From::from)
     }
 
     /// activate jobs
     pub fn activate_jobs(
         &self,
-        jobs_config: ActivateJobsConfig,
-    ) -> impl Stream<Item = ActivatedJob, Error = grpc::Error> + Send {
-        activate_jobs(self.gateway_client.clone(), jobs_config)
+        jobs_config: ActivateJobs,
+    ) -> impl Stream<Item = ActivatedJobs, Error = Error> + Send {
+        self.gateway_client.activate_jobs(Default::default(), jobs_config.into())
+            .drop_metadata()
+            .map_err(|e| Error::ActivateJobError(e))
+            .map(From::from)
     }
 
     /// complete a job
     pub fn complete_job(
         &self,
-        completed_job_data: CompletedJobData,
-    ) -> impl Future<Item = CompletedJobData, Error = grpc::Error> + Send {
-        complete_job(&self.gateway_client, completed_job_data)
+        complete_job: CompleteJob,
+    ) -> impl Future<Item = (), Error = Error> + Send {
+        self.gateway_client
+            .complete_job(Default::default(), complete_job.into())
+            .drop_metadata()
+            .map_err(|e| Error::CompleteJobError(e))
+            .map(|_| ())
     }
 
     /// fail a job
@@ -159,54 +135,23 @@ impl Client {
         job_key: i64,
         retries: i32,
     ) -> impl Future<Item = (), Error = Error> + Send {
-        fail_job(&self.gateway_client, job_key, retries)
+        let request_options = Default::default();
+        let mut request = gateway::FailJobRequest::default();
+        request.set_jobKey(job_key);
+        request.set_retries(retries);
+        self.gateway_client
+            .fail_job(request_options, request)
+            .drop_metadata()
+            .map(|_| ())
+            .map_err(|e| Error::FailJobError(e))
     }
 
-    /// Publish a message with a payload
-    pub fn publish_message<
-        'a,
-        S1: Into<String> + 'a,
-        S2: Into<String> + 'a,
-        S3: Into<String> + 'a,
-        J: Serialize + 'a,
-    >(
-        &'a self,
-        name: S1,
-        correlation_key: S2,
-        time_to_live: i64,
-        message_id: S3,
-        payload: J,
-    ) -> impl Future<Item = (), Error = Error> + 'a {
-        publish_message_with_serializable_payload(
-            &self.gateway_client,
-            name,
-            correlation_key,
-            time_to_live,
-            message_id,
-            payload,
-        )
-    }
-
-    /// Publish a message without a payload
-    pub fn publish_message_no_payload<
-        'a,
-        S1: Into<String> + 'a,
-        S2: Into<String> + 'a,
-        S3: Into<String> + 'a,
-    >(
-        &'a self,
-        name: S1,
-        correlation_key: S2,
-        time_to_live: i64,
-        message_id: S3,
-    ) -> impl Future<Item = (), Error = Error> + 'a {
-        publish_message_with_no_payload(
-            &self.gateway_client,
-            name,
-            correlation_key,
-            time_to_live,
-            message_id,
-        )
+    /// Publish a message
+    pub fn publish_message(&self, publish_message: PublishMessage) -> impl Future<Item = (), Error = Error> {
+        self.gateway_client.publish_message(Default::default(), publish_message.into())
+            .drop_metadata()
+            .map_err(|e| Error::PublishMessageError(e))
+            .map(|_| ())
     }
 
     pub fn worker<H, F, S1, S2>(
@@ -219,7 +164,7 @@ impl Client {
         handler: H,
     ) -> JobWorker<H, F>
     where
-        H: Fn(ActivatedJob) -> F + std::panic::RefUnwindSafe,
+        H: Fn(gateway::ActivatedJob) -> F + std::panic::RefUnwindSafe,
         F: IntoFuture<Item = JobResult, Error = String> + std::panic::UnwindSafe,
         <F as IntoFuture>::Future: std::panic::UnwindSafe,
         S1: Into<String>,
@@ -236,8 +181,6 @@ impl Client {
         )
     }
 }
-
-use crate::gateway;
 
 #[derive(Debug)]
 pub struct Topology {
@@ -331,6 +274,233 @@ impl From<gateway::WorkflowMetadata> for Workflow {
             version: wm.version,
             workflow_key: wm.workflowKey,
             resource_name: wm.resourceName,
+        }
+    }
+}
+
+#[derive(Debug)]
+pub struct CreatedWorkflowInstance {
+    workflow_key: i64,
+    bpmn_process_id: String,
+    version: i32,
+    workflow_instance_key: i64,
+}
+
+impl From<gateway::CreateWorkflowInstanceResponse> for CreatedWorkflowInstance {
+    fn from(cwir: gateway::CreateWorkflowInstanceResponse) -> Self {
+        Self {
+            workflow_key: cwir.workflowKey,
+            bpmn_process_id: cwir.bpmnProcessId,
+            version: cwir.version,
+            workflow_instance_key: cwir.workflowInstanceKey,
+        }
+    }
+}
+
+pub enum WorkflowId {
+    BpmnProcessId(String, WorkflowVersion,),
+    WorkflowKey(i64,)
+}
+
+pub struct WorkflowInstance {
+    id: WorkflowId,
+    variables: Option<String>,
+}
+
+impl WorkflowInstance {
+    pub fn workflow_instance_with_bpmn_process<S: Into<String>>(bpmn_process_id: S, version: WorkflowVersion) -> Self {
+        WorkflowInstance {
+            id: WorkflowId::BpmnProcessId(bpmn_process_id.into(), version),
+            variables: None,
+        }
+    }
+
+    pub fn workflow_instance_with_workflow_key(workflow_key: i64) -> Self {
+        WorkflowInstance {
+            id: WorkflowId::WorkflowKey(workflow_key),
+            variables: None,
+        }
+    }
+
+    pub fn variables<S: Serialize>(mut self, variables: &S) -> Result<Self, serde_json::Error> {
+        serde_json::to_string(variables).map(move|v| {
+            self.variables = Some(v);
+            self
+        })
+    }
+}
+
+impl Into<gateway::CreateWorkflowInstanceRequest> for WorkflowInstance {
+    fn into(self) -> gateway::CreateWorkflowInstanceRequest {
+        let mut request = gateway::CreateWorkflowInstanceRequest::default();
+        match self.id {
+            WorkflowId::BpmnProcessId(bpmn_process_id, version) => {
+                request.set_version(version.into());
+                request.set_bpmnProcessId(bpmn_process_id);
+            },
+            WorkflowId::WorkflowKey(key) => {
+                request.set_workflowKey(key);
+            },
+        }
+        if let Some(variables) = self.variables {
+            request.set_variables(variables);
+        }
+        request
+    }
+}
+
+pub struct PublishMessage {
+    name: String,
+    correlation_key: String,
+    time_to_live: i64,
+    message_id: String,
+    variables: Option<String>,
+}
+
+impl PublishMessage {
+    pub fn new<
+        S1: Into<String>,
+        S2: Into<String>,
+        S3: Into<String>,
+    >(
+        name: S1,
+        correlation_key: S2,
+        time_to_live: i64,
+        message_id: S3,
+    ) -> Self {
+        PublishMessage {
+            name: name.into(),
+            correlation_key: correlation_key.into(),
+            time_to_live,
+            message_id: message_id.into(),
+            variables: None,
+        }
+    }
+
+    pub fn variables<S: Serialize>(mut self, variables: &S) -> Result<Self, Error> {
+        serde_json::to_string(variables)
+            .map_err(|e| Error::JsonError(e))
+            .map(move|v| {
+            self.variables = Some(v);
+            self
+        })
+    }
+}
+
+impl Into<gateway::PublishMessageRequest> for PublishMessage {
+    fn into(self) -> gateway::PublishMessageRequest {
+        let mut publish_message_request = gateway::PublishMessageRequest::default();
+        if let Some(variables) = self.variables {
+            publish_message_request.set_variables(variables);
+        }
+        publish_message_request.set_name(self.name);
+        publish_message_request.set_timeToLive(self.time_to_live);
+        publish_message_request.set_messageId(self.message_id);
+        publish_message_request.set_correlationKey(self.correlation_key);
+        publish_message_request
+    }
+}
+
+#[derive(Debug)]
+pub struct CompleteJob {
+    pub job_key: i64,
+    pub variables: Option<String>,
+}
+
+impl CompleteJob {
+    pub fn new(job_key: i64) -> Self {
+        Self {
+            job_key,
+            variables: None,
+        }
+    }
+
+    pub fn variables<S: Serialize>(mut self, variables: &S) -> Result<Self, Error> {
+        serde_json::to_string(variables)
+            .map_err(|e| Error::JsonError(e))
+            .map(move|v| {
+                self.variables = Some(v);
+                self
+            })
+    }
+}
+
+impl Into<gateway::CompleteJobRequest> for CompleteJob {
+    fn into(self) -> gateway::CompleteJobRequest {
+        let mut complete_job_request = gateway::CompleteJobRequest::default();
+        complete_job_request.set_jobKey(self.job_key);
+        if let Some(variables) = self.variables {
+            complete_job_request.set_variables(variables);
+        }
+        complete_job_request
+    }
+}
+
+#[derive(Debug)]
+pub struct ActivateJobs {
+    pub worker: String,
+    pub job_type: String,
+    pub timeout: i64,
+    pub max_jobs_to_activate: i32,
+}
+
+impl ActivateJobs {
+    pub fn new<S1: Into<String>, S2: Into<String>>(worker: S1, job_type: S2, timeout: i64, max_jobs_to_activate: i32) -> Self {
+        ActivateJobs {
+            worker: worker.into(),
+            job_type: job_type.into(),
+            timeout,
+            max_jobs_to_activate,
+        }
+    }
+}
+
+impl Into<gateway::ActivateJobsRequest> for ActivateJobs {
+    fn into(self) -> gateway::ActivateJobsRequest {
+        let mut activate_jobs_request = gateway::ActivateJobsRequest::default();
+        activate_jobs_request.set_maxJobsToActivate(self.max_jobs_to_activate); // TODO: make this configurable
+        activate_jobs_request.set_timeout(self.timeout);
+        activate_jobs_request.set_worker(self.worker);
+        activate_jobs_request.set_field_type(self.job_type);
+        activate_jobs_request
+    }
+}
+
+#[derive(Debug)]
+pub struct ActivatedJobs {
+    activated_jobs: Vec<ActivatedJob>
+}
+
+impl From<gateway::ActivateJobsResponse> for ActivatedJobs {
+    fn from(ajr: gateway::ActivateJobsResponse) -> Self {
+        let activated_jobs: Vec<ActivatedJob> = ajr.jobs.into_iter().map(From::from).collect();
+        ActivatedJobs {
+            activated_jobs,
+        }
+    }
+}
+
+#[derive(Debug)]
+pub struct ActivatedJob {
+    pub key: i64,
+    pub field_type: String,
+    pub custom_headers: String,
+    pub worker: String,
+    pub retries: i32,
+    pub deadline: i64,
+    pub variables: String,
+}
+
+impl From<gateway::ActivatedJob> for ActivatedJob {
+    fn from(aj: gateway::ActivatedJob) -> Self {
+        ActivatedJob {
+            key: aj.key,
+            variables: aj.variables,
+            worker: aj.worker,
+            retries: aj.retries,
+            deadline: aj.deadline,
+            custom_headers: aj.customHeaders,
+            field_type: aj.field_type,
         }
     }
 }
