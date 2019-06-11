@@ -1,6 +1,6 @@
-use crate::gateway;
 use crate::gateway_grpc;
 use crate::Error;
+use crate::{gateway, ActivatedJob};
 use futures::{Future, IntoFuture, Poll, Stream};
 use std::sync::atomic::{AtomicU16, Ordering};
 use std::sync::Arc;
@@ -46,19 +46,18 @@ where
     }
 }
 
-/// The `JobWorker` describes what a job type and contains a job handler function to call when jobs
-/// are ready to be worked on. The job worker has a maximum number of concurrent jobs that is
-/// controlled by an atomic, consistent counter. When a job handler returns, the job worker will
-/// respond to the gateway with the correct response (complete or fail). The job worker can be
-/// configured with a panic option, so that it knows if to fail the job or do nothing if the handler
-/// panics.
+/// A worker will activate and process jobs with a job handler function.
+/// The job worker has a maximum number of concurrent jobs that is controlled by an atomic,
+/// consistent counter. When a job handler returns, the job worker will respond to the gateway
+/// with the correct response (complete or fail). The job worker can be configured with a panic
+/// option, so that it knows if to fail the job or do nothing if the handler panics.
 ///
 /// The only method will poll for jobs, and if there are any, will start processing jobs. It will
 /// only activate up to the maximum number of concurrent jobs allowed. When jobs complete, the counter
 /// is updated.
 pub struct JobWorker<H, F>
 where
-    H: Fn(gateway::ActivatedJob) -> F + std::panic::RefUnwindSafe,
+    H: Fn(ActivatedJob) -> F + std::panic::RefUnwindSafe,
     F: IntoFuture<Item = JobResult, Error = String> + std::panic::UnwindSafe,
     <F as IntoFuture>::Future: std::panic::UnwindSafe,
 {
@@ -74,11 +73,11 @@ where
 
 impl<H, F> JobWorker<H, F>
 where
-    H: Fn(gateway::ActivatedJob) -> F + std::panic::RefUnwindSafe,
+    H: Fn(ActivatedJob) -> F + std::panic::RefUnwindSafe,
     F: IntoFuture<Item = JobResult, Error = String> + std::panic::UnwindSafe,
     <F as IntoFuture>::Future: std::panic::UnwindSafe,
 {
-    pub fn new(
+    pub(crate) fn new(
         worker: String,
         job_type: String,
         timeout: i64,
@@ -108,6 +107,8 @@ where
         }
     }
 
+    /// Activate jobs of the `job_type` and no more than the `max_amount`. The activate jobs
+    /// will be processed by the `handler`.
     pub fn activate_and_process_jobs(
         &mut self,
     ) -> impl Stream<Item = (JobResult, i64), Error = Error> {
@@ -171,7 +172,7 @@ where
                     let job_key = a.get_key();
                     let retries = a.get_retries();
                     let handler = handler.clone();
-                    futures::future::lazy(move || (handler)(a).into_future()) // call the handler with the `ActivatedJob` data
+                    futures::future::lazy(move || (handler)(a.into()).into_future()) // call the handler with the `ActivatedJob` data
                         // catch any panic, and handle the panic according to the panic option
                         .catch_unwind()
                         .then(move |r: Result<Result<JobResult, _>, _>| match r {
@@ -247,9 +248,9 @@ where
 
 #[cfg(test)]
 mod test {
-    use crate::gateway;
     use crate::gateway_mock::MockGatewayClient;
     use crate::worker::{JobResult, JobWorker, PanicOption};
+    use crate::ActivatedJob;
     use futures::{Future, Stream};
     use std::sync::Arc;
 
@@ -257,7 +258,7 @@ mod test {
     fn completing_jobs() {
         let mock_gateway_client = Arc::new(MockGatewayClient { jobs: vec![1, 2] });
 
-        let handler = |_aj: gateway::ActivatedJob| {
+        let handler = |_aj: ActivatedJob| {
             futures::future::ok::<JobResult, String>(JobResult::Complete { variables: None })
         };
 
@@ -290,7 +291,7 @@ mod test {
     fn failing_jobs() {
         let mock_gateway_client = Arc::new(MockGatewayClient { jobs: vec![1, 2] });
 
-        let handler = |_aj: gateway::ActivatedJob| {
+        let handler = |_aj: ActivatedJob| {
             futures::future::ok::<JobResult, String>(JobResult::Fail {
                 error_message: None,
             })
@@ -335,7 +336,7 @@ mod test {
     fn some_jobs_panic() {
         let mock_gateway_client = Arc::new(MockGatewayClient { jobs: vec![1, 2] });
 
-        let handler = |aj: gateway::ActivatedJob| {
+        let handler = |aj: ActivatedJob| {
             if aj.key == 1 {
                 panic!("gahh!");
             }
@@ -371,7 +372,7 @@ mod test {
     fn some_jobs_panic_with_fail_option() {
         let mock_gateway_client = Arc::new(MockGatewayClient { jobs: vec![1, 2] });
 
-        let handler = |aj: gateway::ActivatedJob| {
+        let handler = |aj: ActivatedJob| {
             if aj.key == 2 {
                 panic!("gahh!");
             }

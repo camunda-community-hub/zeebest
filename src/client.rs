@@ -36,6 +36,7 @@ pub enum Error {
     JsonError(serde_json::error::Error),
 }
 
+/// Strongly type the version. `WorkflowVersion::Latest` is translated to `-1`.
 pub enum WorkflowVersion {
     Latest,
     Version(i32),
@@ -50,6 +51,7 @@ impl Into<i32> for WorkflowVersion {
     }
 }
 
+/// The primary type for interacting with zeebe.
 #[derive(Clone)]
 pub struct Client {
     pub(crate) gateway_client: Arc<GatewayClient>,
@@ -160,6 +162,9 @@ impl Client {
             .map(|_| ())
     }
 
+    /// Create a worker. This will create a `JobWorker` that can activate and process jobs of a
+    /// specific type. The behavior of the job worker is configured with the `timeout`, `max_amount`,
+    /// and `panic_option`. The job handler must be `UnwindSafe` so panics can be captured.
     pub fn worker<H, F, S1, S2>(
         &self,
         worker: S1,
@@ -170,7 +175,7 @@ impl Client {
         handler: H,
     ) -> JobWorker<H, F>
     where
-        H: Fn(gateway::ActivatedJob) -> F + std::panic::RefUnwindSafe,
+        H: Fn(ActivatedJob) -> F + std::panic::RefUnwindSafe,
         F: IntoFuture<Item = JobResult, Error = String> + std::panic::UnwindSafe,
         <F as IntoFuture>::Future: std::panic::UnwindSafe,
         S1: Into<String>,
@@ -188,6 +193,7 @@ impl Client {
     }
 }
 
+/// The toplogy of the zeebe cluster.
 #[derive(Debug)]
 pub struct Topology {
     pub brokers: Vec<BrokerInfo>,
@@ -201,6 +207,7 @@ impl From<gateway::TopologyResponse> for Topology {
     }
 }
 
+/// Describes a zeebe broker.
 #[derive(Debug)]
 pub struct BrokerInfo {
     pub node_id: i32,
@@ -220,6 +227,7 @@ impl From<gateway::BrokerInfo> for BrokerInfo {
     }
 }
 
+/// Describes a partition on a broker.
 #[derive(Debug)]
 pub struct Partition {
     pub partition_id: i32,
@@ -235,6 +243,7 @@ impl From<gateway::Partition> for Partition {
     }
 }
 
+/// Is this broker a leader or not?
 #[derive(Debug)]
 pub enum BrokerRole {
     LEADER = 0,
@@ -250,6 +259,7 @@ impl From<gateway::Partition_PartitionBrokerRole> for BrokerRole {
     }
 }
 
+/// Describes a collection of deployed workflows.
 #[derive(Debug)]
 pub struct DeployedWorkflows {
     pub key: i64,
@@ -265,6 +275,7 @@ impl From<gateway::DeployWorkflowResponse> for DeployedWorkflows {
     }
 }
 
+/// Describes a workflow deployed on zeebe.
 #[derive(Debug)]
 pub struct Workflow {
     pub bpmn_process_id: String,
@@ -284,6 +295,7 @@ impl From<gateway::WorkflowMetadata> for Workflow {
     }
 }
 
+/// Describes a workflow that was instantiated on zeebe.
 #[derive(Debug)]
 pub struct CreatedWorkflowInstance {
     workflow_key: i64,
@@ -303,11 +315,12 @@ impl From<gateway::CreateWorkflowInstanceResponse> for CreatedWorkflowInstance {
     }
 }
 
-pub enum WorkflowId {
+enum WorkflowId {
     BpmnProcessId(String, WorkflowVersion),
     WorkflowKey(i64),
 }
 
+/// Describes a workflow to instantiate.
 pub struct WorkflowInstance {
     id: WorkflowId,
     variables: Option<String>,
@@ -358,6 +371,7 @@ impl Into<gateway::CreateWorkflowInstanceRequest> for WorkflowInstance {
     }
 }
 
+/// A message for publishing an event on zeebe.
 pub struct PublishMessage {
     name: String,
     correlation_key: String,
@@ -406,6 +420,7 @@ impl Into<gateway::PublishMessageRequest> for PublishMessage {
     }
 }
 
+/// A message for completing a zeebe job.
 #[derive(Debug)]
 pub struct CompleteJob {
     pub job_key: i64,
@@ -441,11 +456,16 @@ impl Into<gateway::CompleteJobRequest> for CompleteJob {
     }
 }
 
+/// An object used to activate jobs on the broker.
 #[derive(Debug)]
 pub struct ActivateJobs {
+    /// the name of the worker activating the jobs, mostly used for logging purposes
     pub worker: String,
+    /// the job type, as defined in the BPMN process (e.g. <zeebe:taskDefinition type="payment-service" />)
     pub job_type: String,
+    /// a job returned after this call will not be activated by another call until the timeout has been reached
     pub timeout: i64,
+    /// the maximum jobs to activate by this request
     pub max_jobs_to_activate: i32,
 }
 
@@ -476,6 +496,7 @@ impl Into<gateway::ActivateJobsRequest> for ActivateJobs {
     }
 }
 
+/// Batched up activated jobs. Each batch corresponds to the jobs in a zeebe partition.
 #[derive(Debug)]
 pub struct ActivatedJobs {
     activated_jobs: Vec<ActivatedJob>,
@@ -488,14 +509,22 @@ impl From<gateway::ActivateJobsResponse> for ActivatedJobs {
     }
 }
 
+/// Describes an activate zeebe job. Use this to do work and respond with completion or failure.
 #[derive(Debug)]
 pub struct ActivatedJob {
+    /// the key, a unique identifier for the job
     pub key: i64,
+    /// the type of the job (should match what was requested)
     pub field_type: String,
+    /// a set of custom headers defined during modelling; returned as a serialized JSON document
     pub custom_headers: String,
+    /// the name of the worker which activated this job
     pub worker: String,
+    /// the amount of retries left to this job (should always be positive)
     pub retries: i32,
+    /// when the job can be activated again, sent as a UNIX epoch timestamp
     pub deadline: i64,
+    /// JSON document, computed at activation time, consisting of all visible variables to the task scope
     pub variables: String,
 }
 
