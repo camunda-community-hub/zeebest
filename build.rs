@@ -1,4 +1,6 @@
 fn main() {
+    println!("cargo:rerun-if-changed=proto/gateway.proto");
+
     protoc_rust_grpc::run(protoc_rust_grpc::Args {
         out_dir: "src",
         includes: &[],
