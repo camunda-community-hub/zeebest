@@ -53,10 +53,6 @@ This crate **does not support** the new async syntax. When the async stuff finds
 interested in upgrading the futures from 0.1 to 0.3 and supporting the async syntax. It will definitely help with readability. 
 
 Watch https://areweasyncyet.rs/ for updates.
- 
-## Workers
-
-
 
 ## Zeebe Versions
 
@@ -66,29 +62,6 @@ if the minor version of this crate matches zeebe.
 
 When zeebe stabilizes to 1.0.0 this may matter less. In the mean time, use the version of `zeebest`
 that matches the minor patch version of your zeebe version e.g. 0.18.x. 
-
-## Todos
-
-There are some big issues that needed to be addressed! Some are in-flight, and there is already plenty of refactoring 
-to be done. My futures-foo is not fantastic.
-
-- [x] TESTS (I would like help mocking the grpc stuff, and with the futures testing)
-- [x] Get topology
-- [x] List workflows
-- [x] Deploy workflows
-- [x] Activate and complete job
-- [x] Publish message
-- [x] Create task workers API
-  - [x] Bounded number of concurrent tasks
-  - [x] Support stop workflow on panic
-- [x] Support any zeebe server (not just local)
-- [x] Create examples
-- [x] Futurize
-- [ ] Explore making the API more ergonomic for synchronous use cases (no futures)
-- [ ] Optimize the worker for readability and performance
-- [ ] Find good approach for ergonomic, high level worker runtime that does not involve knowledge of futures or `tokio`
-- [ ] Parse BPMN documents (another crate?)
-- [ ] Support grpc tls (needs to be implemented upstream first)
 
 ## Deving
 
