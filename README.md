@@ -37,6 +37,9 @@ let mut worker = client.worker(
 let job_stream = worker.activate_and_process_job();
 ```
 
+See the individual examples for how to use the client or see the [complete order-process app example][order_process] for 
+a complete solution that uses a lot of the client API. 
+
 ## Futures
 
 Unlike some other zeebe clients, this client is `futures`-first. All methods return futures or streams. 
@@ -89,3 +92,4 @@ the completeness.
 [zeebe_proto]: proto/gateway.proto
 [docker_compose]: https://github.com/zeebe-io/zeebe-docker-compose
 [java_client]: https://github.com/zeebe-io/zeebe/tree/develop/clients/java/src/main/java/io/zeebe/client
+[order_process]: examples/order_process_app.rs
