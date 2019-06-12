@@ -4,6 +4,7 @@ use crate::{gateway, ActivatedJob};
 use futures::{Future, IntoFuture, Poll, Stream};
 use std::sync::atomic::{AtomicU16, Ordering};
 use std::sync::Arc;
+use futures_cpupool::CpuPool;
 
 /// An option that describes what the job worker should do if if the job handler panics.
 #[derive(Clone, Copy)]
@@ -69,6 +70,7 @@ where
     panic_option: PanicOption,
     gateway_client: Arc<gateway_grpc::Gateway + Send + Sync>,
     handler: Arc<H>,
+    thread_pool: CpuPool,
 }
 
 impl<H, F> JobWorker<H, F>
@@ -85,6 +87,7 @@ where
         panic_option: PanicOption,
         gateway_client: Arc<gateway_grpc::Gateway + Send + Sync>,
         handler: H,
+        thread_pool: CpuPool,
     ) -> Self {
         assert!(max_amount > 0, "max amount must be greater than zero");
 
@@ -104,6 +107,7 @@ where
             panic_option,
             gateway_client,
             handler,
+            thread_pool,
         }
     }
 
@@ -164,15 +168,16 @@ where
                 Ok(jobs)
             })
             // insert a reference to the job handler fn into the stream
-            .zip(futures::stream::repeat(self.handler.clone()))
+            .zip(futures::stream::repeat((self.handler.clone(), self.thread_pool.clone())))
             // call the handler for each activated job, return collection of futures
-            .map(move |(jobs, handler)| {
+            .map(move |(jobs, (handler, thread_pool))| {
                 let panic_option = panic_option;
                 jobs.map(move |a| {
                     let job_key = a.get_key();
                     let retries = a.get_retries();
                     let handler = handler.clone();
-                    futures::future::lazy(move || (handler)(a.into()).into_future()) // call the handler with the `ActivatedJob` data
+                    // call the handler with the `ActivatedJob` data and put it on the thread pool
+                    thread_pool.spawn(futures::future::lazy(move || (handler)(a.into()).into_future()))
                         // catch any panic, and handle the panic according to the panic option
                         .catch_unwind()
                         .then(move |r: Result<Result<JobResult, _>, _>| match r {
