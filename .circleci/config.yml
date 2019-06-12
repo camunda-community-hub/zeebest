@@ -16,7 +16,7 @@ jobs:
           command: apt update; apt install protobuf-compiler -y
       - run:
           name: build
-          command: cargo build
+          command: cargo build; cargo build --examples
       - save_cache:
           paths:
             - /usr/local/cargo/registry
