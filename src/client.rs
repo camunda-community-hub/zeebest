@@ -5,8 +5,8 @@ use grpc::ClientStubExt;
 use std::sync::Arc;
 
 use crate::worker::{JobResult, JobWorker, PanicOption};
-use serde::Serialize;
 use futures_cpupool::CpuPool;
+use serde::Serialize;
 
 #[derive(Debug, Fail)]
 pub enum Error {
@@ -65,7 +65,10 @@ impl Client {
         GatewayClient::new_plain(host, port, Default::default())
             .map_err(|e| Error::GatewayError(e))
             .map(Arc::new)
-            .map(|gateway_client| Client { gateway_client, thread_pool: None })
+            .map(|gateway_client| Client {
+                gateway_client,
+                thread_pool: None,
+            })
     }
 
     /// Get the topology. The returned struct is similar to what is printed when running `zbctl status`.
@@ -177,9 +180,9 @@ impl Client {
         handler: H,
     ) -> JobWorker<H, F>
     where
-        H: Fn(ActivatedJob) -> F + std::panic::RefUnwindSafe,
-        F: IntoFuture<Item = JobResult, Error = String> + std::panic::UnwindSafe,
-        <F as IntoFuture>::Future: std::panic::UnwindSafe,
+        H: Fn(ActivatedJob) -> F + Send + Sync,
+        F: IntoFuture<Item = JobResult, Error = String> + Send,
+        <F as IntoFuture>::Future: Send,
         S1: Into<String>,
         S2: Into<String>,
     {
@@ -193,7 +196,7 @@ impl Client {
             panic_option,
             self.gateway_client.clone(),
             handler,
-            thread_pool.clone()
+            thread_pool.clone(),
         )
     }
 }

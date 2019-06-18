@@ -55,7 +55,7 @@ struct Payment {
 }
 
 fn main() {
-    let client = Client::new("127.0.0.1", 26500).expect("Could not connect to broker.");
+    let mut client = Client::new("127.0.0.1", 26500).expect("Could not connect to broker.");
 
     let opt = Opt::from_args();
     match opt {

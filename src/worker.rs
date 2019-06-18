@@ -2,9 +2,10 @@ use crate::gateway_grpc;
 use crate::Error;
 use crate::{gateway, ActivatedJob};
 use futures::{Future, IntoFuture, Poll, Stream};
+use futures_cpupool::CpuPool;
+use std::panic::AssertUnwindSafe;
 use std::sync::atomic::{AtomicU16, Ordering};
 use std::sync::Arc;
-use futures_cpupool::CpuPool;
 
 /// An option that describes what the job worker should do if if the job handler panics.
 #[derive(Clone, Copy)]
@@ -58,9 +59,11 @@ where
 /// is updated.
 pub struct JobWorker<H, F>
 where
-    H: Fn(ActivatedJob) -> F + std::panic::RefUnwindSafe,
-    F: IntoFuture<Item = JobResult, Error = String> + std::panic::UnwindSafe,
-    <F as IntoFuture>::Future: std::panic::UnwindSafe,
+    H: Fn(ActivatedJob) -> F + Send + Sync + 'static,
+    F: IntoFuture<Item = JobResult, Error = String> + 'static,
+    <F as IntoFuture>::Future: Send + 'static,
+    <F as IntoFuture>::Item: Send + 'static,
+    <F as IntoFuture>::Error: Send + 'static,
 {
     worker: String,
     job_type: String,
@@ -75,9 +78,11 @@ where
 
 impl<H, F> JobWorker<H, F>
 where
-    H: Fn(ActivatedJob) -> F + std::panic::RefUnwindSafe,
-    F: IntoFuture<Item = JobResult, Error = String> + std::panic::UnwindSafe,
-    <F as IntoFuture>::Future: std::panic::UnwindSafe,
+    H: Fn(ActivatedJob) -> F + Send + Sync + 'static,
+    F: IntoFuture<Item = JobResult, Error = String> + 'static,
+    <F as IntoFuture>::Future: Send + 'static,
+    <F as IntoFuture>::Item: Send + 'static,
+    <F as IntoFuture>::Error: Send + 'static,
 {
     pub(crate) fn new(
         worker: String,
@@ -168,7 +173,10 @@ where
                 Ok(jobs)
             })
             // insert a reference to the job handler fn into the stream
-            .zip(futures::stream::repeat((self.handler.clone(), self.thread_pool.clone())))
+            .zip(futures::stream::repeat((
+                self.handler.clone(),
+                self.thread_pool.clone(),
+            )))
             // call the handler for each activated job, return collection of futures
             .map(move |(jobs, (handler, thread_pool))| {
                 let panic_option = panic_option;
@@ -176,23 +184,26 @@ where
                     let job_key = a.get_key();
                     let retries = a.get_retries();
                     let handler = handler.clone();
+
                     // call the handler with the `ActivatedJob` data and put it on the thread pool
-                    thread_pool.spawn(futures::future::lazy(move || (handler)(a.into()).into_future()))
-                        // catch any panic, and handle the panic according to the panic option
-                        .catch_unwind()
-                        .then(move |r: Result<Result<JobResult, _>, _>| match r {
-                            // all non panics are simply unwrapped to the underlying result
-                            Ok(job_result) => job_result.map_err(|e| Error::JobError(e)),
-                            // panic option is matched in case of a panic
-                            Err(_) => match panic_option {
-                                // TODO: capture the panic stacktrace and return it with the fail job request
-                                PanicOption::FailJobOnPanic => Ok(JobResult::Fail {
-                                    error_message: Some("Job Handler Panicked.".to_string()),
-                                }),
-                                PanicOption::DoNothingOnPanic => Ok(JobResult::NoAction),
-                            },
-                        })
-                        .join3(Ok(job_key), Ok(retries))
+                    AssertUnwindSafe(
+                        thread_pool.spawn(futures::future::lazy(move || (handler)(a.into()))),
+                    )
+                    // catch any panic, and handle the panic according to the panic option
+                    .catch_unwind()
+                    .then(move |r: Result<Result<JobResult, _>, _>| match r {
+                        // all non panics are simply unwrapped to the underlying result
+                        Ok(job_result) => job_result.map_err(|e| Error::JobError(e)),
+                        // panic option is matched in case of a panic
+                        Err(_) => match panic_option {
+                            // TODO: capture the panic stacktrace and return it with the fail job request
+                            PanicOption::FailJobOnPanic => Ok(JobResult::Fail {
+                                error_message: Some("Job Handler Panicked.".to_string()),
+                            }),
+                            PanicOption::DoNothingOnPanic => Ok(JobResult::NoAction),
+                        },
+                    })
+                    .join3(Ok(job_key), Ok(retries))
                 })
             })
             // create an stream of futures that is unordered - yields as futures complete
@@ -257,6 +268,7 @@ mod test {
     use crate::worker::{JobResult, JobWorker, PanicOption};
     use crate::ActivatedJob;
     use futures::{Future, Stream};
+    use futures_cpupool::CpuPool;
     use std::sync::Arc;
 
     #[test]
@@ -267,6 +279,8 @@ mod test {
             futures::future::ok::<JobResult, String>(JobResult::Complete { variables: None })
         };
 
+        let pool = CpuPool::new(1);
+
         let mut job_worker = JobWorker::new(
             "rusty-worker".to_string(),
             "a".to_string(),
@@ -275,6 +289,7 @@ mod test {
             PanicOption::FailJobOnPanic,
             mock_gateway_client.clone(),
             handler,
+            pool,
         );
 
         let results = job_worker
@@ -302,6 +317,8 @@ mod test {
             })
         };
 
+        let pool = CpuPool::new(1);
+
         let mut job_worker = JobWorker::new(
             "rusty-worker".to_string(),
             "a".to_string(),
@@ -310,6 +327,7 @@ mod test {
             PanicOption::FailJobOnPanic,
             mock_gateway_client.clone(),
             handler,
+            pool,
         );
 
         let results = job_worker
@@ -348,6 +366,8 @@ mod test {
             futures::future::ok::<JobResult, String>(JobResult::Complete { variables: None })
         };
 
+        let pool = CpuPool::new(1);
+
         let mut job_worker = JobWorker::new(
             "rusty-worker".to_string(),
             "a".to_string(),
@@ -356,6 +376,7 @@ mod test {
             PanicOption::DoNothingOnPanic,
             mock_gateway_client.clone(),
             handler,
+            pool,
         );
 
         let results = job_worker
@@ -384,6 +405,8 @@ mod test {
             futures::future::ok::<JobResult, String>(JobResult::Complete { variables: None })
         };
 
+        let pool = CpuPool::new(1);
+
         let mut job_worker = JobWorker::new(
             "rusty-worker".to_string(),
             "a".to_string(),
@@ -392,6 +415,7 @@ mod test {
             PanicOption::FailJobOnPanic,
             mock_gateway_client.clone(),
             handler,
+            pool,
         );
 
         let results = job_worker

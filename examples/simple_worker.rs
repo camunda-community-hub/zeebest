@@ -5,7 +5,7 @@ use tokio::timer::Interval;
 use zeebest::{Client, JobResult, PanicOption};
 
 fn main() {
-    let client = Client::new("127.0.0.1", 26500).unwrap();
+    let mut client = Client::new("127.0.0.1", 26500).unwrap();
 
     let handler = move |_payload| Ok(JobResult::Complete { variables: None });
 
