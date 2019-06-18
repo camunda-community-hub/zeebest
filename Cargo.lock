@@ -1129,7 +1129,7 @@ dependencies = [
 
 [[package]]
 name = "zeebest"
-version = "0.18.0"
+version = "0.18.1"
 dependencies = [
  "atomic-counter 1.0.1 (registry+https://github.com/rust-lang/crates.io-index)",
  "failure 0.1.5 (registry+https://github.com/rust-lang/crates.io-index)",

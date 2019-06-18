@@ -1,6 +1,6 @@
 [package]
 name = "zeebest"
-version = "0.18.0"
+version = "0.18.1"
 authors = ["Mackenzie Clark <mackenzie.a.z.c@gmail.com>"]
 edition = "2018"
 description = "An unofficial zeebe client for the future!"
