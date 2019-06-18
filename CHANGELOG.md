@@ -5,6 +5,8 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ## [Unreleased]
+
+## [0.18.1] - 2019-06-18
 ### Added
 - A complete example app based on the [order-process workflow from Zeebe's "Getting Started Tutorial"][order_process].
 - The job stream now returns the completed `ActivatedJob` struct instead of just the job key. 
@@ -16,6 +18,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 Initial release of zeebest 🥏
 
 [Unreleased]: https://github.com/xmclark/zeebest/compare/v1.18.0...HEAD
+[0.18.1]: https://github.com/xmclark/zeebest/compare//v0.18.0..v0.18.1
 [0.18.0]: https://github.com/xmclark/zeebest/releases/tag/v0.18.0
 
 [order_process]: https://docs.zeebe.io/getting-started/README.html
