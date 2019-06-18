@@ -17,8 +17,11 @@ its best to only request jobs from the broker up to the maximum amount. Each job
 Workers currently will only poll the gateway manually, so you will need to use another system to process jobs periodically. 
 `tokio::Interval` does a pretty good job of this.
 
+All work is put on to a thread-pool with the help of [`futures-cpupool` crate][futures_cpupool] so that the job handlers
+do not block the event loop.
+
 ```rust
-let client = Client::new("127.0.0.1", 26500).unwrap();
+let mut client = Client::new("127.0.0.1", 26500).unwrap();
 
 let handler = move |activated_job| { 
     Ok(JobResult::Complete { variables: None })
@@ -93,3 +96,4 @@ the completeness.
 [docker_compose]: https://github.com/zeebe-io/zeebe-docker-compose
 [java_client]: https://github.com/zeebe-io/zeebe/tree/develop/clients/java/src/main/java/io/zeebe/client
 [order_process]: examples/order_process_app.rs
+[futures_cpupool]: https://crates.io/crates/futures-cpupool
