@@ -31,7 +31,7 @@ fn main() {
             worker
                 .activate_and_process_jobs()
                 .and_then(|(result, key)| {
-                    println!("processed {} with result: {:?}", key, result);
+                    println!("processed {:?} with result: {:?}", key, result);
                     Ok(())
                 })
                 .collect()
