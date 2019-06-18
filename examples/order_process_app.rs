@@ -5,6 +5,7 @@ use atomic_counter::{AtomicCounter, RelaxedCounter};
 use futures::stream::Stream;
 use futures::Future;
 use std::sync::Arc;
+use std::thread::sleep;
 use std::time::Duration;
 use structopt::StructOpt;
 use tokio::timer::Interval;
@@ -55,7 +56,7 @@ struct Payment {
 }
 
 fn main() {
-    let client = Client::new("127.0.0.1", 26500).expect("Could not connect to broker.");
+    let mut client = Client::new("127.0.0.1", 26500).expect("Could not connect to broker.");
 
     let opt = Opt::from_args();
     match opt {
@@ -103,6 +104,7 @@ fn main() {
                 4,
                 PanicOption::FailJobOnPanic,
                 move |_| {
+                    sleep(Duration::from_secs(5));
                     Ok({
                         // increment the order id counter
                         // this would normally be a key in a database or something

@@ -5,6 +5,7 @@ use grpc::ClientStubExt;
 use std::sync::Arc;
 
 use crate::worker::{JobResult, JobWorker, PanicOption};
+use futures_cpupool::CpuPool;
 use serde::Serialize;
 
 #[derive(Debug, Fail)]
@@ -55,6 +56,7 @@ impl Into<i32> for WorkflowVersion {
 #[derive(Clone)]
 pub struct Client {
     pub(crate) gateway_client: Arc<GatewayClient>,
+    thread_pool: Option<CpuPool>,
 }
 
 impl Client {
@@ -63,7 +65,10 @@ impl Client {
         GatewayClient::new_plain(host, port, Default::default())
             .map_err(|e| Error::GatewayError(e))
             .map(Arc::new)
-            .map(|gateway_client| Client { gateway_client })
+            .map(|gateway_client| Client {
+                gateway_client,
+                thread_pool: None,
+            })
     }
 
     /// Get the topology. The returned struct is similar to what is printed when running `zbctl status`.
@@ -166,7 +171,7 @@ impl Client {
     /// specific type. The behavior of the job worker is configured with the `timeout`, `max_amount`,
     /// and `panic_option`. The job handler must be `UnwindSafe` so panics can be captured.
     pub fn worker<H, F, S1, S2>(
-        &self,
+        &mut self,
         worker: S1,
         job_type: S2,
         timeout: i64,
@@ -175,12 +180,14 @@ impl Client {
         handler: H,
     ) -> JobWorker<H, F>
     where
-        H: Fn(ActivatedJob) -> F + std::panic::RefUnwindSafe,
-        F: IntoFuture<Item = JobResult, Error = String> + std::panic::UnwindSafe,
-        <F as IntoFuture>::Future: std::panic::UnwindSafe,
+        H: Fn(ActivatedJob) -> F + Send + Sync,
+        F: IntoFuture<Item = JobResult, Error = String> + Send,
+        <F as IntoFuture>::Future: Send,
         S1: Into<String>,
         S2: Into<String>,
     {
+        let thread_pool = self.thread_pool.get_or_insert(CpuPool::new_num_cpus());
+
         JobWorker::new(
             worker.into(),
             job_type.into(),
@@ -189,6 +196,7 @@ impl Client {
             panic_option,
             self.gateway_client.clone(),
             handler,
+            thread_pool.clone(),
         )
     }
 }

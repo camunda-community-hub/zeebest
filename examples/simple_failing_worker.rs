@@ -6,7 +6,7 @@ use zeebest::{Client, JobResult, PanicOption};
 
 fn main() {
     // put the client in an Arc because it will be used on different threads
-    let client = Client::new("127.0.0.1", 26500).unwrap();
+    let mut client = Client::new("127.0.0.1", 26500).unwrap();
 
     // this is your work function - this one always panics!
     let handler = move |_payload| {
