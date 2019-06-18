@@ -18,7 +18,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 Initial release of zeebest 🥏
 
 [Unreleased]: https://github.com/xmclark/zeebest/compare/v1.18.0...HEAD
-[0.18.1]: https://github.com/xmclark/zeebest/releases/tag/v0.18.0..v0.18.1
+[0.18.1]: https://github.com/xmclark/zeebest/compare//v0.18.0..v0.18.1
 [0.18.0]: https://github.com/xmclark/zeebest/releases/tag/v0.18.0
 
 [order_process]: https://docs.zeebe.io/getting-started/README.html
