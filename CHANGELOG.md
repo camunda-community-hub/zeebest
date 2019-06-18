@@ -10,6 +10,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - The job stream now returns the completed `ActivatedJob` struct instead of just the job key. 
 ### Changed
 - `Sync + UnwindSafe` is now enforced on job handlers and all work is done on a threadpool with `futures-cpupool`.
+- The `Client::worker` method now accepts `Duration` for timeout instead of an `i64` and there is an added assertion.
 
 ## [0.18.0] - 2019-06-10
 Initial release of zeebest 🥏

@@ -7,6 +7,7 @@ use std::sync::Arc;
 use crate::worker::{JobResult, JobWorker, PanicOption};
 use futures_cpupool::CpuPool;
 use serde::Serialize;
+use std::time::Duration;
 
 #[derive(Debug, Fail)]
 pub enum Error {
@@ -169,12 +170,13 @@ impl Client {
 
     /// Create a worker. This will create a `JobWorker` that can activate and process jobs of a
     /// specific type. The behavior of the job worker is configured with the `timeout`, `max_amount`,
-    /// and `panic_option`. The job handler must be `UnwindSafe` so panics can be captured.
+    /// and `panic_option`. The job handler must be `UnwindSafe` so panics can be captured. The timeout
+    /// may not exceed the maximum of i64 or else panic.
     pub fn worker<H, F, S1, S2>(
         &mut self,
         worker: S1,
         job_type: S2,
-        timeout: i64,
+        timeout: Duration,
         max_amount: u16,
         panic_option: PanicOption,
         handler: H,
@@ -187,6 +189,10 @@ impl Client {
         S2: Into<String>,
     {
         let thread_pool = self.thread_pool.get_or_insert(CpuPool::new_num_cpus());
+
+        let timeout = timeout.as_millis() as i64;
+
+        assert!(timeout >= 0, "timeout must be able to cast to i64 and must not exceed i64 maximum in milliseconds or be negative");
 
         JobWorker::new(
             worker.into(),
