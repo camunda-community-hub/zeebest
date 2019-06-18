@@ -7,6 +7,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [Unreleased]
 ### Added
 - A complete example app based on the [order-process workflow from Zeebe's "Getting Started Tutorial"][order_process].
+- The job stream now returns the completed `ActivatedJob` struct instead of just the job key. 
 ### Changed
 - `Sync + UnwindSafe` is now enforced on job handlers and all work is done on a threadpool with `futures-cpupool`.
 
