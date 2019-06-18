@@ -9,6 +9,7 @@ use std::time::Duration;
 use structopt::StructOpt;
 use tokio::timer::Interval;
 use zeebest::{Client, JobResult, PanicOption, PublishMessage, WorkflowInstance, WorkflowVersion};
+use std::thread::sleep;
 
 #[derive(StructOpt, Debug)]
 #[structopt(
@@ -103,6 +104,7 @@ fn main() {
                 4,
                 PanicOption::FailJobOnPanic,
                 move |_| {
+                    sleep(Duration::from_secs(5));
                     Ok({
                         // increment the order id counter
                         // this would normally be a key in a database or something
