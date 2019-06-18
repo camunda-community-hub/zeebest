@@ -12,7 +12,7 @@ fn main() {
     let mut worker = client.worker(
         "rusty-worker",
         "payment-service",
-        10000,
+        Duration::from_secs(10),
         1,
         PanicOption::FailJobOnPanic,
         handler,

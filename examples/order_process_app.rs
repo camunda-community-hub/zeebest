@@ -100,7 +100,7 @@ fn main() {
             let mut initiate_payment_worker = client.worker(
                 "rusty-worker",
                 "initiate-payment",
-                3000,
+                Duration::from_secs(3),
                 4,
                 PanicOption::FailJobOnPanic,
                 move |_| {
@@ -123,7 +123,7 @@ fn main() {
             let mut ship_without_insurance_worker = client.worker(
                 "rusty-worker",
                 "ship-without-insurance",
-                3000,
+                Duration::from_secs(3),
                 4,
                 PanicOption::FailJobOnPanic,
                 |_| Ok(JobResult::Complete { variables: None }),
@@ -132,7 +132,7 @@ fn main() {
             let mut ship_with_insurance_worker = client.worker(
                 "rusty-worker",
                 "ship-with-insurance",
-                3000,
+                Duration::from_secs(3),
                 4,
                 PanicOption::FailJobOnPanic,
                 |_| Ok(JobResult::Complete { variables: None }),
