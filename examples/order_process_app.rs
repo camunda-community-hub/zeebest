@@ -5,11 +5,11 @@ use atomic_counter::{AtomicCounter, RelaxedCounter};
 use futures::stream::Stream;
 use futures::Future;
 use std::sync::Arc;
+use std::thread::sleep;
 use std::time::Duration;
 use structopt::StructOpt;
 use tokio::timer::Interval;
 use zeebest::{Client, JobResult, PanicOption, PublishMessage, WorkflowInstance, WorkflowVersion};
-use std::thread::sleep;
 
 #[derive(StructOpt, Debug)]
 #[structopt(
