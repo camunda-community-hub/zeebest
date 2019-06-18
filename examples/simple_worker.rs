@@ -24,8 +24,8 @@ fn main() {
         .and_then(move |_| {
             worker
                 .activate_and_process_jobs()
-                .and_then(|(result, key)| {
-                    println!("processed {} with result: {:?}", key, result);
+                .and_then(|(result, activated_job)| {
+                    println!("processed {} with result: {:?}", activated_job.key, result);
                     Ok(())
                 })
                 .collect()

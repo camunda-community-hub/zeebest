@@ -120,7 +120,7 @@ where
     /// will be processed by the `handler`.
     pub fn activate_and_process_jobs(
         &mut self,
-    ) -> impl Stream<Item = (JobResult, i64), Error = Error> {
+    ) -> impl Stream<Item = (JobResult, ActivatedJob), Error = Error> {
         // clone the job counter, as it will be moved into a few different closures
         let current_number_of_jobs = self.current_amount.clone();
         let current_number_of_jobs_2 = self.current_amount.clone();
@@ -181,8 +181,7 @@ where
             .map(move |(jobs, (handler, thread_pool))| {
                 let panic_option = panic_option;
                 jobs.map(move |a| {
-                    let job_key = a.get_key();
-                    let retries = a.get_retries();
+                    let activated_job: ActivatedJob = a.clone().into();
                     let handler = handler.clone();
 
                     // call the handler with the `ActivatedJob` data and put it on the thread pool
@@ -203,7 +202,7 @@ where
                             PanicOption::DoNothingOnPanic => Ok(JobResult::NoAction),
                         },
                     })
-                    .join3(Ok(job_key), Ok(retries))
+                    .join(Ok(activated_job))
                 })
             })
             // create an stream of futures that is unordered - yields as futures complete
@@ -215,14 +214,15 @@ where
                 current_number_of_jobs_2.fetch_sub(1, Ordering::SeqCst);
             })
             // finally, match on the item, and respond to the gateway
-            .and_then(move |(result, job_key, retries)| {
+            .and_then(move |(result, activated_job)| {
                 let result: JobResult = result;
                 let cloned_result_complete = result.clone();
                 let cloned_result_fail = result.clone();
-                let job_key: i64 = job_key;
+                let job_key = activated_job.key;
+                let retries = activated_job.retries;
                 match result {
                     JobResult::NoAction => {
-                        JobResultFuture::NoAction(futures::future::ok((result, job_key)))
+                        JobResultFuture::NoAction(futures::future::ok((result, activated_job)))
                     }
                     JobResult::Fail { error_message } => {
                         let options = Default::default();
@@ -237,7 +237,7 @@ where
                                 .fail_job(options, fail_request)
                                 .drop_metadata()
                                 .map_err(|e| Error::FailJobError(e))
-                                .map(move |_| (cloned_result_complete, job_key)),
+                                .map(move |_| (cloned_result_complete, activated_job)),
                         )
                     }
                     JobResult::Complete { variables } => {
@@ -252,7 +252,7 @@ where
                                 .complete_job(options, complete_request)
                                 .drop_metadata()
                                 .map_err(|e| Error::CompleteJobError(e))
-                                .map(move |_| (cloned_result_fail, job_key)),
+                                .map(move |_| (cloned_result_fail, activated_job)),
                         )
                     }
                 }
@@ -292,11 +292,14 @@ mod test {
             pool,
         );
 
-        let results = job_worker
+        let results: Vec<(JobResult, i64)> = job_worker
             .activate_and_process_jobs()
             .collect()
             .wait()
-            .unwrap();
+            .unwrap()
+            .into_iter()
+            .map(|(results, a)| (results, a.key))
+            .collect();
 
         assert_eq!(
             results,
@@ -330,11 +333,14 @@ mod test {
             pool,
         );
 
-        let results = job_worker
+        let results: Vec<(JobResult, i64)> = job_worker
             .activate_and_process_jobs()
             .collect()
             .wait()
-            .unwrap();
+            .unwrap()
+            .into_iter()
+            .map(|(results, a)| (results, a.key))
+            .collect();
 
         assert_eq!(
             results,
@@ -379,11 +385,14 @@ mod test {
             pool,
         );
 
-        let results = job_worker
+        let results: Vec<(JobResult, i64)> = job_worker
             .activate_and_process_jobs()
             .collect()
             .wait()
-            .unwrap();
+            .unwrap()
+            .into_iter()
+            .map(|(results, a)| (results, a.key))
+            .collect();
 
         assert_eq!(
             results,
@@ -418,22 +427,22 @@ mod test {
             pool,
         );
 
-        let results = job_worker
+        let results: Vec<JobResult> = job_worker
             .activate_and_process_jobs()
             .collect()
             .wait()
-            .unwrap();
+            .unwrap()
+            .into_iter()
+            .map(|(results, _)| results)
+            .collect();
 
         assert_eq!(
             results,
             vec![
-                (JobResult::Complete { variables: None }, 1i64),
-                (
-                    JobResult::Fail {
-                        error_message: Some("Job Handler Panicked.".to_string())
-                    },
-                    2i64
-                ),
+                JobResult::Complete { variables: None },
+                JobResult::Fail {
+                    error_message: Some("Job Handler Panicked.".to_string())
+                },
             ]
         );
     }
