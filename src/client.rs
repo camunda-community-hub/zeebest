@@ -4,15 +4,15 @@ use futures::{Future, IntoFuture, Stream};
 use grpc::ClientStubExt;
 use std::sync::Arc;
 
-use crate::worker::{JobResult, JobWorker, PanicOption};
-use futures_cpupool::CpuPool;
 #[cfg(feature = "tls")]
 use crate::tls_certificate::TlsCertificate;
+use crate::worker::{JobResult, JobWorker, PanicOption};
+use futures_cpupool::CpuPool;
 #[cfg(feature = "tls")]
 use grpc::ClientStub;
 use serde::Serialize;
 #[cfg(feature = "tls")]
-use std::net::SocketAddr;
+use std::net::ToSocketAddrs;
 use std::time::Duration;
 
 #[derive(Debug, Fail)]
@@ -93,9 +93,9 @@ impl Client {
         let config = Default::default();
         let tls_option = tls_certificate.into_tls_option(host.as_ref().to_owned())?;
         let socket_addr_string: String = format!("{}:{}", host.as_ref(), port);
-        let socket_addr: SocketAddr = socket_addr_string
-            .parse()
-            .map_err(|e| Error::ParseAddressError(e))?;
+        let socket_addr = socket_addr_string.to_socket_addrs();
+        let mut socket_addr = socket_addr.unwrap();
+        let socket_addr = socket_addr.next().unwrap();
         let grpc_client = grpc::Client::new_expl(&socket_addr, host.as_ref(), tls_option, config)
             .map_err(|e| Error::GatewayError(e))
             .map(Arc::new)?;

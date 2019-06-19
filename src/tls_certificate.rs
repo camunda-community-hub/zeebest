@@ -1,7 +1,7 @@
 use crate::Error;
 use httpbis::ClientTlsOption;
 use std::sync::Arc;
-use tls_api::TlsConnectorBuilder;
+use tls_api::{CertificateFormat, TlsConnectorBuilder};
 use tls_api_native_tls::TlsConnector;
 
 pub struct TlsCertificate {
@@ -9,9 +9,18 @@ pub struct TlsCertificate {
 }
 
 impl TlsCertificate {
-    pub fn new(der_certificate_bytes: Vec<u8>) -> Self {
+    pub fn new_from_der(der_certificate_bytes: Vec<u8>) -> Self {
         TlsCertificate {
             certificate: tls_api::Certificate::from_der(der_certificate_bytes),
+        }
+    }
+
+    pub fn new_from_pem(pem_certificate_bytes: Vec<u8>) -> Self {
+        TlsCertificate {
+            certificate: tls_api::Certificate {
+                bytes: pem_certificate_bytes,
+                format: CertificateFormat::PEM,
+            },
         }
     }
 
