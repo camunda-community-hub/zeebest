@@ -4,7 +4,7 @@ use futures::{Future, IntoFuture, Stream};
 use grpc::ClientStubExt;
 use std::sync::Arc;
 
-use crate::worker::{JobResult, JobWorker, PanicOption};
+//use crate::worker::{JobResult, JobWorker, PanicOption};
 use futures_cpupool::CpuPool;
 use serde::Serialize;
 use std::time::Duration;
@@ -168,43 +168,40 @@ impl Client {
             .map(|_| ())
     }
 
-    /// Create a worker. This will create a `JobWorker` that can activate and process jobs of a
-    /// specific type. The behavior of the job worker is configured with the `timeout`, `max_amount`,
-    /// and `panic_option`. The job handler must be `UnwindSafe` so panics can be captured. The timeout
-    /// may not exceed the maximum of i64 or else panic.
-    pub fn worker<H, F, S1, S2>(
-        &mut self,
-        worker: S1,
-        job_type: S2,
-        timeout: Duration,
-        max_amount: u16,
-        panic_option: PanicOption,
-        handler: H,
-    ) -> JobWorker<H, F>
-    where
-        H: Fn(ActivatedJob) -> F + Send + Sync,
-        F: IntoFuture<Item = JobResult, Error = String> + Send,
-        <F as IntoFuture>::Future: Send,
-        S1: Into<String>,
-        S2: Into<String>,
-    {
-        let thread_pool = self.thread_pool.get_or_insert(CpuPool::new_num_cpus());
 
-        let timeout = timeout.as_millis() as i64;
-
-        assert!(timeout >= 0, "timeout must be able to cast to i64 and must not exceed i64 maximum in milliseconds or be negative");
-
-        JobWorker::new(
-            worker.into(),
-            job_type.into(),
-            timeout,
-            max_amount,
-            panic_option,
-            self.gateway_client.clone(),
-            handler,
-            thread_pool.clone(),
-        )
-    }
+//    pub fn worker<H, F, S1, S2>(
+//        &mut self,
+//        worker: S1,
+//        job_type: S2,
+//        timeout: Duration,
+//        max_amount: u16,
+//        panic_option: PanicOption,
+//        handler: H,
+//    ) -> JobWorker<H, F>
+//    where
+//        H: Fn(ActivatedJob) -> F + Send + Sync,
+//        F: IntoFuture<Item = JobResult, Error = String> + Send,
+//        <F as IntoFuture>::Future: Send,
+//        S1: Into<String>,
+//        S2: Into<String>,
+//    {
+//        let thread_pool = self.thread_pool.get_or_insert(CpuPool::new_num_cpus());
+//
+//        let timeout = timeout.as_millis() as i64;
+//
+//        assert!(timeout >= 0, "timeout must be able to cast to i64 and must not exceed i64 maximum in milliseconds or be negative");
+//
+//        JobWorker::new(
+//            worker.into(),
+//            job_type.into(),
+//            timeout,
+//            max_amount,
+//            panic_option,
+//            self.gateway_client.clone(),
+//            handler,
+//            thread_pool.clone(),
+//        )
+//    }
 }
 
 /// The toplogy of the zeebe cluster.
