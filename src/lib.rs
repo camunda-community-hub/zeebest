@@ -19,6 +19,9 @@ mod gateway_mock;
 pub mod runtime_builder;
 
 #[cfg(feature = "worker")]
+pub mod worker_builder;
+
+#[cfg(feature = "worker")]
 mod worker;
 
 pub use client::*;

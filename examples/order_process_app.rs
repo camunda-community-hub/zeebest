@@ -16,6 +16,7 @@ use futures::compat::Stream01CompatExt;
 use std::panic::UnwindSafe;
 use zeebest::Error::FailJobError;
 use zeebest::runtime_builder::RuntimeBuilder;
+use zeebest::worker_builder::WorkerBuilder;
 use futures::executor::block_on;
 use runtime::time::Interval;
 
@@ -203,7 +204,6 @@ async fn main() {
             let f = |aj: ActivatedJob| { async { JobResult::NoAction } };
             let f = Arc::new(f);
 
-
             let initial_payment_config = WorkerConfig::new(
                 "rusty-worker".to_string(),
                 "initiate-payment".to_string(),
@@ -229,20 +229,17 @@ async fn main() {
                 }
             };
 
+let worker = WorkerBuilder::with_interval(Interval::new(Duration::from_secs(1)))
+    .job_handler(initial_payment_config, initial_payment_handler)
+    .job_handler(shipping_config, shipping_handler)
+    .build();
 
-            let mut interval = Interval::new(Duration::from_millis(10));
-
-            interval.next().await;
-            interval.next().await;
-            interval.next().await;
-
-            RuntimeBuilder::new()
-                .client(client)
-                .worker(initial_payment_config, initial_payment_handler)
-                .interval(Interval::new(Duration::from_secs(1)))
-                .build()
-                .await
-                ;
+RuntimeBuilder::new()
+    .client(client)
+    .worker(worker)
+    .run()
+    .await
+    ;
 
 //            block_on(i);
 

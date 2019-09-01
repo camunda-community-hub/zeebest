@@ -25,7 +25,7 @@ pub enum JobResult {
 #[derive(Clone, Debug, PartialEq, Eq, Hash)]
 pub struct WorkerConfig {
     /// the name of the worker activating the jobs, mostly used for logging purposes
-    pub worker: String,
+    pub worker_name: String,
     /// the job type, as defined in the BPMN process (e.g. <zeebe:taskDefinition type="payment-service" />)
     pub job_type: String,
     /// a job returned after this call will not be activated by another call until the timeout has been reached
@@ -39,7 +39,7 @@ pub struct WorkerConfig {
 impl WorkerConfig {
     pub fn new(worker: String, job_type: String, timeout: i64, max_jobs_to_activate: i32, panic_option: PanicOption) -> Self {
         Self {
-            worker,
+            worker_name: worker,
             job_type,
             timeout,
             max_jobs_to_activate,
