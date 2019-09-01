@@ -2,14 +2,22 @@
 extern crate serde_derive;
 
 use atomic_counter::{AtomicCounter, RelaxedCounter};
-use futures::stream::Stream;
-use futures::Future;
+use futures::{Future, TryFuture, TryFutureExt, Stream, TryStream, TryStreamExt, StreamExt};
+use futures::prelude::*;
+use runtime::net::TcpListener;
 use std::sync::Arc;
 use std::thread::sleep;
 use std::time::Duration;
 use structopt::StructOpt;
-use tokio::timer::Interval;
-use zeebest::{Client, JobResult, PanicOption, PublishMessage, WorkflowInstance, WorkflowVersion};
+use zeebest::{Client, PublishMessage, WorkflowInstance, WorkflowVersion, ActivateJobs, ActivatedJob, PanicOption, ActivatedJobs, JobResult, CompleteJob, WorkerConfig};
+use std::pin::Pin;
+use std::io;
+use futures::compat::Stream01CompatExt;
+use std::panic::UnwindSafe;
+use zeebest::Error::FailJobError;
+use zeebest::runtime_builder::RuntimeBuilder;
+use futures::executor::block_on;
+use runtime::time::Interval;
 
 #[derive(StructOpt, Debug)]
 #[structopt(
@@ -55,7 +63,109 @@ struct Payment {
     pub order_value: f32,
 }
 
-fn main() {
+//async fn sum_with_try_next(
+//    mut stream: Pin<&mut dyn Stream<Item = Result<i32, io::Error>>>,
+//) -> Result<i32, io::Error> {
+//    use futures::stream::TryStreamExt; // for `try_next`
+//    let mut sum = 0;
+//    while let Some(item) = stream.try_next().await? {
+//        sum += item;
+//    }
+//    Ok(sum)
+//}
+
+//async fn interval<Fut1,F>(client: Arc<Client>, f: Arc<F>, panic_option: PanicOption, mut interval_stream: impl Stream + Unpin) -> Result<i32, ()> where
+//    Fut1: Future<Output = JobResult> + Send + UnwindSafe + 'static,
+//    F: Fn(ActivatedJob) -> Fut1 + Send + Sync + 'static,
+//{
+////    let mut stream = Interval::new_interval(Duration::from_secs(1)).compat();
+//    while let Some(_) = interval_stream.next().await {
+//        let activate_jobs = ActivateJobs::new("the_worker", "the_job_type", 10000, 10);
+//        let mut activate_jobs_stream= client.activate_jobs(activate_jobs);
+//        while let Some(Ok(activated_jobs)) = activate_jobs_stream.next().await {
+//            for aj in activated_jobs.activated_jobs.into_iter() {
+//                let f = f.clone();
+//                let klient = client.clone();
+//                let job_key = aj.key;
+//                let retries = aj.retries;
+//                runtime::spawn(async move {
+//                    let r = match f(aj).catch_unwind().await {
+//                        Ok(r) => r,
+//                        Err(_) => {
+//                            match panic_option {
+//                                PanicOption::DoNothingOnPanic => {
+//                                    JobResult::Fail {
+//                                        error_message: Some("Job Handler Panicked.".to_string()),
+//                                    }
+//                                },
+//                                PanicOption::FailJobOnPanic => {
+//                                    JobResult::NoAction
+//                                }
+//                            }
+//                        },
+//                    };
+//                    match r {
+//                        JobResult::NoAction => {},
+//                        JobResult::Complete {variables} => {
+//                            let complete_job = CompleteJob { job_key, variables };
+//                            klient.complete_job(complete_job).await.unwrap();
+//                        },
+//                        JobResult::Fail {error_message} => {
+//                            klient.fail_job(job_key, retries - 1).await.unwrap();
+//                        }
+//                    }
+//                });
+//            };
+//        }
+//    }
+//    Ok(0)
+//}
+
+//            .and_then(move |(result, activated_job)| {
+//                let result: JobResult = result;
+//                let cloned_result_complete = result.clone();
+//                let cloned_result_fail = result.clone();
+//                let job_key = activated_job.key;
+//                let retries = activated_job.retries;
+//                match result {
+//                    JobResult::NoAction => {
+//                        JobResultFuture::NoAction(futures::future::ok((result, activated_job)))
+//                    }
+//                    JobResult::Fail { error_message } => {
+//                        let options = Default::default();
+//                        let mut fail_request = gateway::FailJobRequest::default();
+//                        fail_request.set_jobKey(job_key);
+//                        fail_request.set_retries(retries - 1);
+//                        if let Some(error_message) = error_message {
+//                            fail_request.set_errorMessage(error_message);
+//                        }
+//                        JobResultFuture::Fail(
+//                            gateway_client
+//                                .fail_job(options, fail_request)
+//                                .drop_metadata()
+//                                .map_err(|e| Error::FailJobError(e))
+//                                .map(move |_| (cloned_result_complete, activated_job)),
+//                        )
+//                    }
+//                    JobResult::Complete { variables } => {
+//                        let options = Default::default();
+//                        let mut complete_request = gateway::CompleteJobRequest::default();
+//                        complete_request.set_jobKey(job_key);
+//                        if let Some(variables) = variables {
+//                            complete_request.set_variables(variables)
+//                        }
+//                        JobResultFuture::Complete(
+//                            gateway_client
+//                                .complete_job(options, complete_request)
+//                                .drop_metadata()
+//                                .map_err(|e| Error::CompleteJobError(e))
+//                                .map(move |_| (cloned_result_fail, activated_job)),
+//                        )
+//                    }
+//                }
+
+#[runtime::main(runtime_tokio::Tokio)]
+async fn main() {
     let mut client = Client::new("127.0.0.1", 26500).expect("Could not connect to broker.");
 
     let opt = Opt::from_args();
@@ -65,18 +175,14 @@ fn main() {
                 .deploy_bpmn_workflow(
                     "order-process",
                     include_bytes!("../examples/order-process.bpmn").to_vec(),
-                )
-                .wait()
-                .unwrap();
+                ).await.unwrap();
         }
         Opt::PlaceOrder => {
             client
                 .create_workflow_instance(WorkflowInstance::workflow_instance_with_bpmn_process(
                     "order-process",
                     WorkflowVersion::Latest,
-                ))
-                .wait()
-                .unwrap();
+                )).await.unwrap();
         }
         Opt::NotifyPaymentReceived { order_id, cost } => {
             client
@@ -89,77 +195,150 @@ fn main() {
                     )
                     .variables(&Payment { order_value: cost })
                     .unwrap(),
-                )
-                .wait()
-                .unwrap();
+                ).await.unwrap();
         }
         Opt::ProcessJobs => {
             let order_id_counter = Arc::new(RelaxedCounter::new(0));
 
-            // a payment worker that passes along a new order_id
-            let mut initiate_payment_worker = client.worker(
-                "rusty-worker",
-                "initiate-payment",
-                Duration::from_secs(3),
+            let f = |aj: ActivatedJob| { async { JobResult::NoAction } };
+            let f = Arc::new(f);
+
+
+            let initial_payment_config = WorkerConfig::new(
+                "rusty-worker".to_string(),
+                "initiate-payment".to_string(),
+                Duration::from_secs(3).as_millis() as _,
                 4,
                 PanicOption::FailJobOnPanic,
-                move |_| {
+            );
+
+            let initial_payment_handler = move |_| {
+                let order_id_counter = order_id_counter.clone();
+                async move {
                     sleep(Duration::from_secs(5));
-                    Ok({
-                        // increment the order id counter
-                        // this would normally be a key in a database or something
-                        let order_id = order_id_counter.inc();
-                        let variables = serde_json::to_string(&Order {
-                            order_id: order_id as i32,
-                        })
+                    // increment the order id counter
+                    // this would normally be a key in a database or something
+                    let order_id = order_id_counter.inc();
+                    let variables = serde_json::to_string(&Order {
+                        order_id: order_id as i32,
+                    })
                         .unwrap();
-                        JobResult::Complete {
-                            variables: Some(variables),
-                        }
-                    })
-                },
-            );
+                    JobResult::Complete {
+                        variables: Some(variables),
+                    }
+                }
+            };
 
-            let mut ship_without_insurance_worker = client.worker(
-                "rusty-worker",
-                "ship-without-insurance",
-                Duration::from_secs(3),
-                4,
-                PanicOption::FailJobOnPanic,
-                |_| Ok(JobResult::Complete { variables: None }),
-            );
 
-            let mut ship_with_insurance_worker = client.worker(
-                "rusty-worker",
-                "ship-with-insurance",
-                Duration::from_secs(3),
-                4,
-                PanicOption::FailJobOnPanic,
-                |_| Ok(JobResult::Complete { variables: None }),
-            );
+            let mut interval = Interval::new(Duration::from_millis(10));
 
-            let f = Interval::new_interval(Duration::from_secs(1))
-                .map_err(|_| panic!("The interval panicked."))
-                .and_then(move |_| {
-                    let s1 = initiate_payment_worker.activate_and_process_jobs();
-                    let s2 = ship_without_insurance_worker.activate_and_process_jobs();
-                    let s3 = ship_with_insurance_worker.activate_and_process_jobs();
-                    let sa = s1.select(s2);
-                    let sb = sa.select(s3);
-                    sb.map(|jr| {
-                        println!("job result: {:?}", jr);
-                    })
-                    .map_err(|e| {
-                        eprintln!("job errored: {:?}", e);
-                    })
-                    .collect()
-                    .map(|_| ())
-                })
-                .collect()
-                .map(|_| println!("Done."))
-                .map_err(|_| ());
+            interval.next().await;
+            interval.next().await;
+            interval.next().await;
 
-            tokio::run(f);
+            RuntimeBuilder::new()
+                .client(client)
+                .worker(initial_payment_config, initial_payment_handler)
+                .interval(Interval::new(Duration::from_secs(1)))
+                .build()
+                .await
+                ;
+
+//            block_on(i);
+
+//            let _: i32 = interval(client, f, PanicOption::FailJobOnPanic, stream).await.unwrap();
+
+            // a payment worker that passes along a new order_id
+//            let mut initiate_payment_worker = client.worker(
+//                "rusty-worker",
+//                "initiate-payment",
+//                Duration::from_secs(3),
+//                4,
+//                PanicOption::FailJobOnPanic,
+//                move |_| {
+//                    sleep(Duration::from_secs(5));
+//                    Ok({
+//                        // increment the order id counter
+//                        // this would normally be a key in a database or something
+//                        let order_id = order_id_counter.inc();
+//                        let variables = serde_json::to_string(&Order {
+//                            order_id: order_id as i32,
+//                        })
+//                        .unwrap();
+//                        JobResult::Complete {
+//                            variables: Some(variables),
+//                        }
+//                    })
+//                },
+//            );
+//
+//            let mut ship_without_insurance_worker = client.worker(
+//                "rusty-worker",
+//                "ship-without-insurance",
+//                Duration::from_secs(3),
+//                4,
+//                PanicOption::FailJobOnPanic,
+//                |_| Ok(JobResult::Complete { variables: None }),
+//            );
+//
+//            let mut ship_with_insurance_worker = client.worker(
+//                "rusty-worker",
+//                "ship-with-insurance",
+//                Duration::from_secs(3),
+//                4,
+//                PanicOption::FailJobOnPanic,
+//                |_| Ok(JobResult::Complete { variables: None }),
+//            );
+
+//            client.new_worker()
+//                .job_type("ship-with-insurance")
+//                .handler(|job| {
+//
+//                })
+//                .max_jobs_active()
+//                .poll_interval(Duration::from_secs(1))
+//                .timeout(Duration::from_secs(10));
+//
+//            let do_work = async move |_| {
+//                let activate_jobs = ActivateJobs::new("the_worker", "the_job_type", 10000, 10);
+//
+//                let activate_jobs_stream= client.activate_jobs(activate_jobs);
+//                use futures::stream::StreamExt; // for `next`
+//                let mut sum = 0;
+//                while let Some(item) = activate_jobs_stream.next().await {
+//                    sum += item;
+//                }
+//                unimplemented!()
+//
+////                activate_jobs.and_then()
+//            };
+
+//            Interval::new_interval(Duration::from_secs(1)).compat()
+//                .for_each(do_work)
+//            ;
+
+//            let f = Interval::new_interval(Duration::from_secs(1))
+//                .map_err(|_| panic!("The interval panicked."))
+//                .and_then(move |_| {
+//                    let s1 = initiate_payment_worker.activate_and_process_jobs();
+//                    let s2 = ship_without_insurance_worker.activate_and_process_jobs();
+//                    let s3 = ship_with_insurance_worker.activate_and_process_jobs();
+//                    let sa = s1.select(s2);
+//                    let sb = sa.select(s3);
+//                    sb.map(|jr| {
+//                        println!("job result: {:?}", jr);
+//                    })
+//                    .map_err(|e| {
+//                        eprintln!("job errored: {:?}", e);
+//                    })
+//                    .collect()
+//                    .map(|_| ())
+//                })
+//                .collect()
+//                .map(|_| println!("Done."))
+//                .map_err(|_| ());
+//
+//            tokio::run(f);
         }
     }
 }

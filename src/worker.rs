@@ -7,20 +7,47 @@
 //use std::sync::atomic::{AtomicU16, Ordering};
 //use std::sync::Arc;
 //
-///// An option that describes what the job worker should do if if the job handler panics.
-//#[derive(Clone, Copy)]
-//pub enum PanicOption {
-//    FailJobOnPanic,
-//    DoNothingOnPanic,
-//}
-//
-///// A result that describes the output of a job.
-//#[derive(Clone, Debug, PartialEq)]
-//pub enum JobResult {
-//    Complete { variables: Option<String> },
-//    Fail { error_message: Option<String> },
-//    NoAction,
-//}
+/// An option that describes what the job worker should do if if the job handler panics.
+#[derive(Clone, Copy, Debug, PartialEq, Eq, Hash)]
+pub enum PanicOption {
+    FailJobOnPanic,
+    DoNothingOnPanic,
+}
+
+/// A result that describes the output of a job.
+#[derive(Clone, Debug, PartialEq)]
+pub enum JobResult {
+    Complete { variables: Option<String> },
+    Fail { error_message: Option<String> },
+    NoAction,
+}
+
+#[derive(Clone, Debug, PartialEq, Eq, Hash)]
+pub struct WorkerConfig {
+    /// the name of the worker activating the jobs, mostly used for logging purposes
+    pub worker: String,
+    /// the job type, as defined in the BPMN process (e.g. <zeebe:taskDefinition type="payment-service" />)
+    pub job_type: String,
+    /// a job returned after this call will not be activated by another call until the timeout has been reached
+    pub timeout: i64,
+    /// the maximum jobs to activate by this request
+    pub max_jobs_to_activate: i32,
+    /// panic handling option
+    pub panic_option: PanicOption,
+}
+
+impl WorkerConfig {
+    pub fn new(worker: String, job_type: String, timeout: i64, max_jobs_to_activate: i32, panic_option: PanicOption) -> Self {
+        Self {
+            worker,
+            job_type,
+            timeout,
+            max_jobs_to_activate,
+            panic_option,
+        }
+    }
+}
+
 //
 ///// A tri-either type for nicely wrapping the final result which branches based on the response to
 ///// the grpc gateway.

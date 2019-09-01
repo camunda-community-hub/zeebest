@@ -21,7 +21,7 @@ fn main() {
         .variables(&payment)
         .unwrap();
 
-    client.publish_message(publish_message).wait().unwrap();
+//    client.publish_message(publish_message).wait().unwrap();
 
     println!("published message");
 }

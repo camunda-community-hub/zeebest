@@ -14,7 +14,14 @@ mod gateway;
 mod gateway_grpc;
 #[cfg(test)]
 mod gateway_mock;
+
+#[cfg(feature = "worker")]
+pub mod runtime_builder;
+
+#[cfg(feature = "worker")]
 mod worker;
 
 pub use client::*;
+
+#[cfg(feature = "worker")]
 pub use worker::*;

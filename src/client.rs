@@ -487,7 +487,7 @@ impl Into<gateway::CompleteJobRequest> for CompleteJob {
 }
 
 /// An object used to activate jobs on the broker.
-#[derive(Debug)]
+#[derive(Debug, PartialEq, Eq, Hash)]
 pub struct ActivateJobs {
     /// the name of the worker activating the jobs, mostly used for logging purposes
     pub worker: String,
@@ -529,7 +529,7 @@ impl Into<gateway::ActivateJobsRequest> for ActivateJobs {
 /// Batched up activated jobs. Each batch corresponds to the jobs in a zeebe partition.
 #[derive(Debug)]
 pub struct ActivatedJobs {
-    activated_jobs: Vec<ActivatedJob>,
+    pub activated_jobs: Vec<ActivatedJob>,
 }
 
 impl ActivatedJobs {
