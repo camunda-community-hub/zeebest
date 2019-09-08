@@ -15,7 +15,6 @@ use std::io;
 use futures::compat::Stream01CompatExt;
 use std::panic::UnwindSafe;
 use zeebest::Error::FailJobError;
-use zeebest::runtime_builder::RuntimeBuilder;
 use zeebest::worker_builder::WorkerBuilder;
 use futures::executor::block_on;
 use runtime::time::Interval;
@@ -169,7 +168,9 @@ struct Payment {
 async fn main() {
     let mut client = Client::new("127.0.0.1", 26500).expect("Could not connect to broker.");
 
-    let opt = Opt::from_args();
+//    let opt = Opt::from_args();
+    let opt = Opt::ProcessJobs;
+
     match opt {
         Opt::DeployWorkflow => {
             client
@@ -215,7 +216,7 @@ async fn main() {
             let initial_payment_handler = move |_| {
                 let order_id_counter = order_id_counter.clone();
                 async move {
-                    sleep(Duration::from_secs(5));
+                    println!("doing work");
                     // increment the order id counter
                     // this would normally be a key in a database or something
                     let order_id = order_id_counter.inc();
@@ -226,116 +227,14 @@ async fn main() {
                     JobResult::Complete {
                         variables: Some(variables),
                     }
-                }
+                }.boxed()
             };
 
-let worker = WorkerBuilder::with_interval(Interval::new(Duration::from_secs(1)))
-    .job_handler(initial_payment_config, initial_payment_handler)
-    .job_handler(shipping_config, shipping_handler)
-    .build();
 
-RuntimeBuilder::new()
-    .client(client)
-    .worker(worker)
-    .run()
-    .await
-    ;
-
-//            block_on(i);
-
-//            let _: i32 = interval(client, f, PanicOption::FailJobOnPanic, stream).await.unwrap();
-
-            // a payment worker that passes along a new order_id
-//            let mut initiate_payment_worker = client.worker(
-//                "rusty-worker",
-//                "initiate-payment",
-//                Duration::from_secs(3),
-//                4,
-//                PanicOption::FailJobOnPanic,
-//                move |_| {
-//                    sleep(Duration::from_secs(5));
-//                    Ok({
-//                        // increment the order id counter
-//                        // this would normally be a key in a database or something
-//                        let order_id = order_id_counter.inc();
-//                        let variables = serde_json::to_string(&Order {
-//                            order_id: order_id as i32,
-//                        })
-//                        .unwrap();
-//                        JobResult::Complete {
-//                            variables: Some(variables),
-//                        }
-//                    })
-//                },
-//            );
-//
-//            let mut ship_without_insurance_worker = client.worker(
-//                "rusty-worker",
-//                "ship-without-insurance",
-//                Duration::from_secs(3),
-//                4,
-//                PanicOption::FailJobOnPanic,
-//                |_| Ok(JobResult::Complete { variables: None }),
-//            );
-//
-//            let mut ship_with_insurance_worker = client.worker(
-//                "rusty-worker",
-//                "ship-with-insurance",
-//                Duration::from_secs(3),
-//                4,
-//                PanicOption::FailJobOnPanic,
-//                |_| Ok(JobResult::Complete { variables: None }),
-//            );
-
-//            client.new_worker()
-//                .job_type("ship-with-insurance")
-//                .handler(|job| {
-//
-//                })
-//                .max_jobs_active()
-//                .poll_interval(Duration::from_secs(1))
-//                .timeout(Duration::from_secs(10));
-//
-//            let do_work = async move |_| {
-//                let activate_jobs = ActivateJobs::new("the_worker", "the_job_type", 10000, 10);
-//
-//                let activate_jobs_stream= client.activate_jobs(activate_jobs);
-//                use futures::stream::StreamExt; // for `next`
-//                let mut sum = 0;
-//                while let Some(item) = activate_jobs_stream.next().await {
-//                    sum += item;
-//                }
-//                unimplemented!()
-//
-////                activate_jobs.and_then()
-//            };
-
-//            Interval::new_interval(Duration::from_secs(1)).compat()
-//                .for_each(do_work)
-//            ;
-
-//            let f = Interval::new_interval(Duration::from_secs(1))
-//                .map_err(|_| panic!("The interval panicked."))
-//                .and_then(move |_| {
-//                    let s1 = initiate_payment_worker.activate_and_process_jobs();
-//                    let s2 = ship_without_insurance_worker.activate_and_process_jobs();
-//                    let s3 = ship_with_insurance_worker.activate_and_process_jobs();
-//                    let sa = s1.select(s2);
-//                    let sb = sa.select(s3);
-//                    sb.map(|jr| {
-//                        println!("job result: {:?}", jr);
-//                    })
-//                    .map_err(|e| {
-//                        eprintln!("job errored: {:?}", e);
-//                    })
-//                    .collect()
-//                    .map(|_| ())
-//                })
-//                .collect()
-//                .map(|_| println!("Done."))
-//                .map_err(|_| ());
-//
-//            tokio::run(f);
+            println!("processing jobs");
+            WorkerBuilder::new_with_interval_and_client(Interval::new(Duration::from_secs(5)), Arc::new(client))
+                .add_job_handler("initiate-payment", initial_payment_config, initial_payment_handler)
+                .into_future().await;
         }
     }
 }

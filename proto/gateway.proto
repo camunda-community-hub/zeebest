@@ -1,206 +1,60 @@
-/*
-                                 Apache License
-                           Version 2.0, January 2004
-                        http://www.apache.org/licenses/
-
-   TERMS AND CONDITIONS FOR USE, REPRODUCTION, AND DISTRIBUTION
-
-   1. Definitions.
-
-      "License" shall mean the terms and conditions for use, reproduction,
-      and distribution as defined by Sections 1 through 9 of this document.
-
-      "Licensor" shall mean the copyright owner or entity authorized by
-      the copyright owner that is granting the License.
-
-      "Legal Entity" shall mean the union of the acting entity and all
-      other entities that control, are controlled by, or are under common
-      control with that entity. For the purposes of this definition,
-      "control" means (i) the power, direct or indirect, to cause the
-      direction or management of such entity, whether by contract or
-      otherwise, or (ii) ownership of fifty percent (50%) or more of the
-      outstanding shares, or (iii) beneficial ownership of such entity.
-
-      "You" (or "Your") shall mean an individual or Legal Entity
-      exercising permissions granted by this License.
-
-      "Source" form shall mean the preferred form for making modifications,
-      including but not limited to software source code, documentation
-      source, and configuration files.
-
-      "Object" form shall mean any form resulting from mechanical
-      transformation or translation of a Source form, including but
-      not limited to compiled object code, generated documentation,
-      and conversions to other media types.
-
-      "Work" shall mean the work of authorship, whether in Source or
-      Object form, made available under the License, as indicated by a
-      copyright notice that is included in or attached to the work
-      (an example is provided in the Appendix below).
-
-      "Derivative Works" shall mean any work, whether in Source or Object
-      form, that is based on (or derived from) the Work and for which the
-      editorial revisions, annotations, elaborations, or other modifications
-      represent, as a whole, an original work of authorship. For the purposes
-      of this License, Derivative Works shall not include works that remain
-      separable from, or merely link (or bind by name) to the interfaces of,
-      the Work and Derivative Works thereof.
-
-      "Contribution" shall mean any work of authorship, including
-      the original version of the Work and any modifications or additions
-      to that Work or Derivative Works thereof, that is intentionally
-      submitted to Licensor for inclusion in the Work by the copyright owner
-      or by an individual or Legal Entity authorized to submit on behalf of
-      the copyright owner. For the purposes of this definition, "submitted"
-      means any form of electronic, verbal, or written communication sent
-      to the Licensor or its representatives, including but not limited to
-      communication on electronic mailing lists, source code control systems,
-      and issue tracking systems that are managed by, or on behalf of, the
-      Licensor for the purpose of discussing and improving the Work, but
-      excluding communication that is conspicuously marked or otherwise
-      designated in writing by the copyright owner as "Not a Contribution."
-
-      "Contributor" shall mean Licensor and any individual or Legal Entity
-      on behalf of whom a Contribution has been received by Licensor and
-      subsequently incorporated within the Work.
-
-   2. Grant of Copyright License. Subject to the terms and conditions of
-      this License, each Contributor hereby grants to You a perpetual,
-      worldwide, non-exclusive, no-charge, royalty-free, irrevocable
-      copyright license to reproduce, prepare Derivative Works of,
-      publicly display, publicly perform, sublicense, and distribute the
-      Work and such Derivative Works in Source or Object form.
-
-   3. Grant of Patent License. Subject to the terms and conditions of
-      this License, each Contributor hereby grants to You a perpetual,
-      worldwide, non-exclusive, no-charge, royalty-free, irrevocable
-      (except as stated in this section) patent license to make, have made,
-      use, offer to sell, sell, import, and otherwise transfer the Work,
-      where such license applies only to those patent claims licensable
-      by such Contributor that are necessarily infringed by their
-      Contribution(s) alone or by combination of their Contribution(s)
-      with the Work to which such Contribution(s) was submitted. If You
-      institute patent litigation against any entity (including a
-      cross-claim or counterclaim in a lawsuit) alleging that the Work
-      or a Contribution incorporated within the Work constitutes direct
-      or contributory patent infringement, then any patent licenses
-      granted to You under this License for that Work shall terminate
-      as of the date such litigation is filed.
-
-   4. Redistribution. You may reproduce and distribute copies of the
-      Work or Derivative Works thereof in any medium, with or without
-      modifications, and in Source or Object form, provided that You
-      meet the following conditions:
-
-      (a) You must give any other recipients of the Work or
-          Derivative Works a copy of this License; and
-
-      (b) You must cause any modified files to carry prominent notices
-          stating that You changed the files; and
-
-      (c) You must retain, in the Source form of any Derivative Works
-          that You distribute, all copyright, patent, trademark, and
-          attribution notices from the Source form of the Work,
-          excluding those notices that do not pertain to any part of
-          the Derivative Works; and
-
-      (d) If the Work includes a "NOTICE" text file as part of its
-          distribution, then any Derivative Works that You distribute must
-          include a readable copy of the attribution notices contained
-          within such NOTICE file, excluding those notices that do not
-          pertain to any part of the Derivative Works, in at least one
-          of the following places: within a NOTICE text file distributed
-          as part of the Derivative Works; within the Source form or
-          documentation, if provided along with the Derivative Works; or,
-          within a display generated by the Derivative Works, if and
-          wherever such third-party notices normally appear. The contents
-          of the NOTICE file are for informational purposes only and
-          do not modify the License. You may add Your own attribution
-          notices within Derivative Works that You distribute, alongside
-          or as an addendum to the NOTICE text from the Work, provided
-          that such additional attribution notices cannot be construed
-          as modifying the License.
-
-      You may add Your own copyright statement to Your modifications and
-      may provide additional or different license terms and conditions
-      for use, reproduction, or distribution of Your modifications, or
-      for any such Derivative Works as a whole, provided Your use,
-      reproduction, and distribution of the Work otherwise complies with
-      the conditions stated in this License.
-
-   5. Submission of Contributions. Unless You explicitly state otherwise,
-      any Contribution intentionally submitted for inclusion in the Work
-      by You to the Licensor shall be under the terms and conditions of
-      this License, without any additional terms or conditions.
-      Notwithstanding the above, nothing herein shall supersede or modify
-      the terms of any separate license agreement you may have executed
-      with Licensor regarding such Contributions.
-
-   6. Trademarks. This License does not grant permission to use the trade
-      names, trademarks, service marks, or product names of the Licensor,
-      except as required for reasonable and customary use in describing the
-      origin of the Work and reproducing the content of the NOTICE file.
-
-   7. Disclaimer of Warranty. Unless required by applicable law or
-      agreed to in writing, Licensor provides the Work (and each
-      Contributor provides its Contributions) on an "AS IS" BASIS,
-      WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or
-      implied, including, without limitation, any warranties or conditions
-      of TITLE, NON-INFRINGEMENT, MERCHANTABILITY, or FITNESS FOR A
-      PARTICULAR PURPOSE. You are solely responsible for determining the
-      appropriateness of using or redistributing the Work and assume any
-      risks associated with Your exercise of permissions under this License.
-
-   8. Limitation of Liability. In no event and under no legal theory,
-      whether in tort (including negligence), contract, or otherwise,
-      unless required by applicable law (such as deliberate and grossly
-      negligent acts) or agreed to in writing, shall any Contributor be
-      liable to You for damages, including any direct, indirect, special,
-      incidental, or consequential damages of any character arising as a
-      result of this License or out of the use or inability to use the
-      Work (including but not limited to damages for loss of goodwill,
-      work stoppage, computer failure or malfunction, or any and all
-      other commercial damages or losses), even if such Contributor
-      has been advised of the possibility of such damages.
-
-   9. Accepting Warranty or Additional Liability. While redistributing
-      the Work or Derivative Works thereof, You may choose to offer,
-      and charge a fee for, acceptance of support, warranty, indemnity,
-      or other liability obligations and/or rights consistent with this
-      License. However, in accepting such obligations, You may act only
-      on Your own behalf and on Your sole responsibility, not on behalf
-      of any other Contributor, and only if You agree to indemnify,
-      defend, and hold each Contributor harmless for any liability
-      incurred by, or claims asserted against, such Contributor by reason
-      of your accepting any such warranty or additional liability.
-
-   END OF TERMS AND CONDITIONS
-
-   APPENDIX: How to apply the Apache License to your work.
-
-      To apply the Apache License to your work, attach the following
-      boilerplate notice, with the fields enclosed by brackets "{}"
-      replaced with your own identifying information. (Don't include
-      the brackets!)  The text should be enclosed in the appropriate
-      comment syntax for the file format. We also recommend that a
-      file or class name and description of purpose be included on the
-      same "printed page" as the copyright notice for easier
-      identification within third-party archives.
-
-   Copyright {yyyy} {name of copyright owner}
-
-   Licensed under the Apache License, Version 2.0 (the "License");
-   you may not use this file except in compliance with the License.
-   You may obtain a copy of the License at
-
-       http://www.apache.org/licenses/LICENSE-2.0
-
-   Unless required by applicable law or agreed to in writing, software
-   distributed under the License is distributed on an "AS IS" BASIS,
-   WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
-   See the License for the specific language governing permissions and
-   limitations under the License.
-*/
+//Zeebe Community License v1.0
+//
+//This Zeebe Community License v1.0 ("this Agreement") sets forth the terms and
+//conditions on which Camunda Services GmbH ("the Licensor") makes available this
+//software ("the Software"). BY INSTALLING, DOWNLOADING, ACCESSING, USING OR
+//DISTRIBUTING THE SOFTWARE YOU INDICATE YOUR ACCEPTANCE TO, AND ARE ENTERING
+//INTO A CONTRACT WITH, THE LICENSOR ON THE TERMS SET OUT IN THIS AGREEMENT. IF
+//YOU DO NOT AGREE TO THESE TERMS, YOU MUST NOT USE THE SOFTWARE. IF YOU ARE
+//RECEIVING THE SOFTWARE ON BEHALF OF A LEGAL ENTITY, YOU REPRESENT AND WARRANT
+//THAT YOU HAVE THE ACTUAL AUTHORITY TO AGREE TO THE TERMS AND CONDITIONS OF THIS
+//AGREEMENT ON BEHALF OF SUCH ENTITY. "Licensee" means you, an individual, or the
+//entity on whose behalf you are receiving the Software.
+//
+//Permission is hereby granted, free of charge, to the Licensee obtaining a copy
+//of this Software and associated documentation files, to deal in the Software
+//without restriction, including without limitation the rights to use, copy,
+//modify, merge, publish, distribute, sublicense, and/or sell copies of the
+//Software, and to permit persons to whom the Software is furnished to do so,
+//subject in each case to the following conditions:
+//
+//Condition 1: If the Licensee distributes the Software or any derivative works
+//of the Software, the Licensee must attach this Agreement.
+//
+//Condition 2: Without limiting other conditions in this Agreement, the grant of
+//rights under this Agreement does not include the right to provide a Commercial
+//Workflow Service.
+//
+//A "Commercial Workflow Service" is a service intended for or directed towards
+//commercial advantage or monetary compensation for the provider of the service
+//enabling third parties (other than the provider’s employees or Contractors) to
+//deploy and execute Custom Workflows or to access the Software via its APIs.
+//
+//"Contractors" means third parties who are engaged to perform ICT development,
+//maintenance, configuration, training, consulting or associated management
+//services and are acting in that capacity.
+//
+//"Custom Workflows" means workflow descriptions contained in BPMN or similar
+//configuration files, that specify the logic for executing programmatic
+//services, such that third parties can define these programmatic services freely
+//(as opposed to selecting them from a restricted set of pre-defined programmatic
+//services made available by the provider of the Commercial Workflow Service).
+//
+//If the Licensee is in breach of the Conditions, this Agreement, including the
+//rights granted under it, will automatically terminate with immediate effect.
+//
+//SUBJECT AS SET OUT BELOW, THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF
+//ANY KIND, EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF
+//MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO
+//EVENT SHALL THE AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES
+//OR OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE,
+//ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER
+//DEALINGS IN THE SOFTWARE.
+//
+//NOTHING IN THIS AGREEMENT EXCLUDES OR RESTRICTS A PARTY’S LIABILITY FOR (A)
+//DEATH OR PERSONAL INJURY CAUSED BY THAT PARTY’S NEGLIGENCE, (B) FRAUD, OR (C)
+//ANY OTHER LIABILITY TO THE EXTENT THAT IT CANNOT BE LAWFULLY EXCLUDED OR
+//RESTRICTED.
 
 syntax = 'proto3';
 package gateway_protocol;
@@ -226,6 +80,10 @@ message ActivateJobsRequest {
   // a list of variables to fetch as the job variables; if empty, all visible variables at
   // the time of activation for the scope of the job will be returned
   repeated string fetchVariable = 5;
+  // The request will be completed when at least one job is activated or after the requestTimeout.
+  // if the requestTimeout = 0, a default timeout is used.
+  // if the requestTimeout < 0, long polling is disabled and the request is completed immediately, even when no job is activated.
+  int64 requestTimeout = 6;
 }
 
 message ActivateJobsResponse {
@@ -238,36 +96,31 @@ message ActivatedJob {
   int64 key = 1;
   // the type of the job (should match what was requested)
   string type = 2;
-  // a set of headers tying the job to a workflow instance/task instance
-  JobHeaders jobHeaders = 3;
-  // a set of custom headers defined during modelling; returned as a serialized
-  // JSON document
-  string customHeaders = 4;
-  // the name of the worker which activated this job
-  string worker = 5;
-  // the amount of retries left to this job (should always be positive)
-  int32 retries = 6;
-  // when the job can be activated again, sent as a UNIX epoch timestamp
-  int64 deadline = 7;
-  // JSON document, computed at activation time, consisting of all visible variables to
-  // the task scope
-  string variables = 8;
-}
-
-message JobHeaders {
   // the job's workflow instance key
-  int64 workflowInstanceKey = 1;
+  int64 workflowInstanceKey = 3;
   // the bpmn process ID of the job workflow definition
-  string bpmnProcessId = 2;
+  string bpmnProcessId = 4;
   // the version of the job workflow definition
-  int32 workflowDefinitionVersion = 3;
+  int32 workflowDefinitionVersion = 5;
   // the key of the job workflow definition
-  int64 workflowKey = 4;
+  int64 workflowKey = 6;
   // the associated task element ID
-  string elementId = 5;
+  string elementId = 7;
   // the unique key identifying the associated task, unique within the scope of the
   // workflow instance
-  int64 elementInstanceKey = 6;
+  int64 elementInstanceKey = 8;
+  // a set of custom headers defined during modelling; returned as a serialized
+  // JSON document
+  string customHeaders = 9;
+  // the name of the worker which activated this job
+  string worker = 10;
+  // the amount of retries left to this job (should always be positive)
+  int32 retries = 11;
+  // when the job can be activated again, sent as a UNIX epoch timestamp
+  int64 deadline = 12;
+  // JSON document, computed at activation time, consisting of all visible variables to
+  // the task scope
+  string variables = 13;
 }
 
 message CancelWorkflowInstanceRequest {
@@ -315,7 +168,7 @@ message CreateWorkflowInstanceResponse {
   int32 version = 3;
   // the unique identifier of the created workflow instance; to be used wherever a request
   // needs a workflow instance key (e.g. CancelWorkflowInstanceRequest)
-  int64 workflowInstanceKey = 5;
+  int64 workflowInstanceKey = 4;
 }
 
 message DeployWorkflowRequest {
@@ -403,6 +256,7 @@ message ResolveIncidentResponse {
 
 message TopologyRequest {
 }
+
 message TopologyResponse {
   // list of brokers part of this cluster
   repeated BrokerInfo brokers = 1;
@@ -435,7 +289,7 @@ message Partition {
   // the unique ID of this partition
   int32 partitionId = 1;
   // the role of the broker for this partition
-  PartitionBrokerRole role = 3;
+  PartitionBrokerRole role = 2;
 }
 
 message UpdateJobRetriesRequest {
@@ -451,7 +305,7 @@ message UpdateJobRetriesResponse {
 message SetVariablesRequest {
   // the unique identifier of a particular element; can be the workflow instance key (as
   // obtained during instance creation), or a given element, such as a service task (see
-  // elementInstanceKey on the JobHeaders message)
+  // elementInstanceKey on the job message)
   int64 elementInstanceKey = 1;
   // a JSON serialized document describing variables as key value pairs; the root of the document
   // must be an object

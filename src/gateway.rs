@@ -29,6 +29,7 @@ pub struct ActivateJobsRequest {
     pub timeout: i64,
     pub maxJobsToActivate: i32,
     pub fetchVariable: ::protobuf::RepeatedField<::std::string::String>,
+    pub requestTimeout: i64,
     // special fields
     pub unknown_fields: ::protobuf::UnknownFields,
     pub cached_size: ::protobuf::CachedSize,
@@ -151,6 +152,21 @@ impl ActivateJobsRequest {
     pub fn take_fetchVariable(&mut self) -> ::protobuf::RepeatedField<::std::string::String> {
         ::std::mem::replace(&mut self.fetchVariable, ::protobuf::RepeatedField::new())
     }
+
+    // int64 requestTimeout = 6;
+
+
+    pub fn get_requestTimeout(&self) -> i64 {
+        self.requestTimeout
+    }
+    pub fn clear_requestTimeout(&mut self) {
+        self.requestTimeout = 0;
+    }
+
+    // Param is passed by value, moved
+    pub fn set_requestTimeout(&mut self, v: i64) {
+        self.requestTimeout = v;
+    }
 }
 
 impl ::protobuf::Message for ActivateJobsRequest {
@@ -185,6 +201,13 @@ impl ::protobuf::Message for ActivateJobsRequest {
                 5 => {
                     ::protobuf::rt::read_repeated_string_into(wire_type, is, &mut self.fetchVariable)?;
                 },
+                6 => {
+                    if wire_type != ::protobuf::wire_format::WireTypeVarint {
+                        return ::std::result::Result::Err(::protobuf::rt::unexpected_wire_type(wire_type));
+                    }
+                    let tmp = is.read_int64()?;
+                    self.requestTimeout = tmp;
+                },
                 _ => {
                     ::protobuf::rt::read_unknown_or_skip_group(field_number, wire_type, is, self.mut_unknown_fields())?;
                 },
@@ -212,6 +235,9 @@ impl ::protobuf::Message for ActivateJobsRequest {
         for value in &self.fetchVariable {
             my_size += ::protobuf::rt::string_size(5, &value);
         };
+        if self.requestTimeout != 0 {
+            my_size += ::protobuf::rt::value_size(6, self.requestTimeout, ::protobuf::wire_format::WireTypeVarint);
+        }
         my_size += ::protobuf::rt::unknown_fields_size(self.get_unknown_fields());
         self.cached_size.set(my_size);
         my_size
@@ -233,6 +259,9 @@ impl ::protobuf::Message for ActivateJobsRequest {
         for v in &self.fetchVariable {
             os.write_string(5, &v)?;
         };
+        if self.requestTimeout != 0 {
+            os.write_int64(6, self.requestTimeout)?;
+        }
         os.write_unknown_fields(self.get_unknown_fields())?;
         ::std::result::Result::Ok(())
     }
@@ -300,6 +329,11 @@ impl ::protobuf::Message for ActivateJobsRequest {
                     |m: &ActivateJobsRequest| { &m.fetchVariable },
                     |m: &mut ActivateJobsRequest| { &mut m.fetchVariable },
                 ));
+                fields.push(::protobuf::reflect::accessor::make_simple_field_accessor::<_, ::protobuf::types::ProtobufTypeInt64>(
+                    "requestTimeout",
+                    |m: &ActivateJobsRequest| { &m.requestTimeout },
+                    |m: &mut ActivateJobsRequest| { &mut m.requestTimeout },
+                ));
                 ::protobuf::reflect::MessageDescriptor::new::<ActivateJobsRequest>(
                     "ActivateJobsRequest",
                     fields,
@@ -327,6 +361,7 @@ impl ::protobuf::Clear for ActivateJobsRequest {
         self.timeout = 0;
         self.maxJobsToActivate = 0;
         self.fetchVariable.clear();
+        self.requestTimeout = 0;
         self.unknown_fields.clear();
     }
 }
@@ -524,7 +559,12 @@ pub struct ActivatedJob {
     // message fields
     pub key: i64,
     pub field_type: ::std::string::String,
-    pub jobHeaders: ::protobuf::SingularPtrField<JobHeaders>,
+    pub workflowInstanceKey: i64,
+    pub bpmnProcessId: ::std::string::String,
+    pub workflowDefinitionVersion: i32,
+    pub workflowKey: i64,
+    pub elementId: ::std::string::String,
+    pub elementInstanceKey: i64,
     pub customHeaders: ::std::string::String,
     pub worker: ::std::string::String,
     pub retries: i32,
@@ -587,40 +627,119 @@ impl ActivatedJob {
         ::std::mem::replace(&mut self.field_type, ::std::string::String::new())
     }
 
-    // .gateway_protocol.JobHeaders jobHeaders = 3;
+    // int64 workflowInstanceKey = 3;
 
 
-    pub fn get_jobHeaders(&self) -> &JobHeaders {
-        self.jobHeaders.as_ref().unwrap_or_else(|| JobHeaders::default_instance())
+    pub fn get_workflowInstanceKey(&self) -> i64 {
+        self.workflowInstanceKey
     }
-    pub fn clear_jobHeaders(&mut self) {
-        self.jobHeaders.clear();
-    }
-
-    pub fn has_jobHeaders(&self) -> bool {
-        self.jobHeaders.is_some()
+    pub fn clear_workflowInstanceKey(&mut self) {
+        self.workflowInstanceKey = 0;
     }
 
     // Param is passed by value, moved
-    pub fn set_jobHeaders(&mut self, v: JobHeaders) {
-        self.jobHeaders = ::protobuf::SingularPtrField::some(v);
+    pub fn set_workflowInstanceKey(&mut self, v: i64) {
+        self.workflowInstanceKey = v;
+    }
+
+    // string bpmnProcessId = 4;
+
+
+    pub fn get_bpmnProcessId(&self) -> &str {
+        &self.bpmnProcessId
+    }
+    pub fn clear_bpmnProcessId(&mut self) {
+        self.bpmnProcessId.clear();
+    }
+
+    // Param is passed by value, moved
+    pub fn set_bpmnProcessId(&mut self, v: ::std::string::String) {
+        self.bpmnProcessId = v;
     }
 
     // Mutable pointer to the field.
     // If field is not initialized, it is initialized with default value first.
-    pub fn mut_jobHeaders(&mut self) -> &mut JobHeaders {
-        if self.jobHeaders.is_none() {
-            self.jobHeaders.set_default();
-        }
-        self.jobHeaders.as_mut().unwrap()
+    pub fn mut_bpmnProcessId(&mut self) -> &mut ::std::string::String {
+        &mut self.bpmnProcessId
     }
 
     // Take field
-    pub fn take_jobHeaders(&mut self) -> JobHeaders {
-        self.jobHeaders.take().unwrap_or_else(|| JobHeaders::new())
+    pub fn take_bpmnProcessId(&mut self) -> ::std::string::String {
+        ::std::mem::replace(&mut self.bpmnProcessId, ::std::string::String::new())
     }
 
-    // string customHeaders = 4;
+    // int32 workflowDefinitionVersion = 5;
+
+
+    pub fn get_workflowDefinitionVersion(&self) -> i32 {
+        self.workflowDefinitionVersion
+    }
+    pub fn clear_workflowDefinitionVersion(&mut self) {
+        self.workflowDefinitionVersion = 0;
+    }
+
+    // Param is passed by value, moved
+    pub fn set_workflowDefinitionVersion(&mut self, v: i32) {
+        self.workflowDefinitionVersion = v;
+    }
+
+    // int64 workflowKey = 6;
+
+
+    pub fn get_workflowKey(&self) -> i64 {
+        self.workflowKey
+    }
+    pub fn clear_workflowKey(&mut self) {
+        self.workflowKey = 0;
+    }
+
+    // Param is passed by value, moved
+    pub fn set_workflowKey(&mut self, v: i64) {
+        self.workflowKey = v;
+    }
+
+    // string elementId = 7;
+
+
+    pub fn get_elementId(&self) -> &str {
+        &self.elementId
+    }
+    pub fn clear_elementId(&mut self) {
+        self.elementId.clear();
+    }
+
+    // Param is passed by value, moved
+    pub fn set_elementId(&mut self, v: ::std::string::String) {
+        self.elementId = v;
+    }
+
+    // Mutable pointer to the field.
+    // If field is not initialized, it is initialized with default value first.
+    pub fn mut_elementId(&mut self) -> &mut ::std::string::String {
+        &mut self.elementId
+    }
+
+    // Take field
+    pub fn take_elementId(&mut self) -> ::std::string::String {
+        ::std::mem::replace(&mut self.elementId, ::std::string::String::new())
+    }
+
+    // int64 elementInstanceKey = 8;
+
+
+    pub fn get_elementInstanceKey(&self) -> i64 {
+        self.elementInstanceKey
+    }
+    pub fn clear_elementInstanceKey(&mut self) {
+        self.elementInstanceKey = 0;
+    }
+
+    // Param is passed by value, moved
+    pub fn set_elementInstanceKey(&mut self, v: i64) {
+        self.elementInstanceKey = v;
+    }
+
+    // string customHeaders = 9;
 
 
     pub fn get_customHeaders(&self) -> &str {
@@ -646,7 +765,7 @@ impl ActivatedJob {
         ::std::mem::replace(&mut self.customHeaders, ::std::string::String::new())
     }
 
-    // string worker = 5;
+    // string worker = 10;
 
 
     pub fn get_worker(&self) -> &str {
@@ -672,7 +791,7 @@ impl ActivatedJob {
         ::std::mem::replace(&mut self.worker, ::std::string::String::new())
     }
 
-    // int32 retries = 6;
+    // int32 retries = 11;
 
 
     pub fn get_retries(&self) -> i32 {
@@ -687,7 +806,7 @@ impl ActivatedJob {
         self.retries = v;
     }
 
-    // int64 deadline = 7;
+    // int64 deadline = 12;
 
 
     pub fn get_deadline(&self) -> i64 {
@@ -702,7 +821,7 @@ impl ActivatedJob {
         self.deadline = v;
     }
 
-    // string variables = 8;
+    // string variables = 13;
 
 
     pub fn get_variables(&self) -> &str {
@@ -731,11 +850,6 @@ impl ActivatedJob {
 
 impl ::protobuf::Message for ActivatedJob {
     fn is_initialized(&self) -> bool {
-        for v in &self.jobHeaders {
-            if !v.is_initialized() {
-                return false;
-            }
-        };
         true
     }
 
@@ -754,29 +868,60 @@ impl ::protobuf::Message for ActivatedJob {
                     ::protobuf::rt::read_singular_proto3_string_into(wire_type, is, &mut self.field_type)?;
                 },
                 3 => {
-                    ::protobuf::rt::read_singular_message_into(wire_type, is, &mut self.jobHeaders)?;
+                    if wire_type != ::protobuf::wire_format::WireTypeVarint {
+                        return ::std::result::Result::Err(::protobuf::rt::unexpected_wire_type(wire_type));
+                    }
+                    let tmp = is.read_int64()?;
+                    self.workflowInstanceKey = tmp;
                 },
                 4 => {
-                    ::protobuf::rt::read_singular_proto3_string_into(wire_type, is, &mut self.customHeaders)?;
+                    ::protobuf::rt::read_singular_proto3_string_into(wire_type, is, &mut self.bpmnProcessId)?;
                 },
                 5 => {
-                    ::protobuf::rt::read_singular_proto3_string_into(wire_type, is, &mut self.worker)?;
+                    if wire_type != ::protobuf::wire_format::WireTypeVarint {
+                        return ::std::result::Result::Err(::protobuf::rt::unexpected_wire_type(wire_type));
+                    }
+                    let tmp = is.read_int32()?;
+                    self.workflowDefinitionVersion = tmp;
                 },
                 6 => {
+                    if wire_type != ::protobuf::wire_format::WireTypeVarint {
+                        return ::std::result::Result::Err(::protobuf::rt::unexpected_wire_type(wire_type));
+                    }
+                    let tmp = is.read_int64()?;
+                    self.workflowKey = tmp;
+                },
+                7 => {
+                    ::protobuf::rt::read_singular_proto3_string_into(wire_type, is, &mut self.elementId)?;
+                },
+                8 => {
+                    if wire_type != ::protobuf::wire_format::WireTypeVarint {
+                        return ::std::result::Result::Err(::protobuf::rt::unexpected_wire_type(wire_type));
+                    }
+                    let tmp = is.read_int64()?;
+                    self.elementInstanceKey = tmp;
+                },
+                9 => {
+                    ::protobuf::rt::read_singular_proto3_string_into(wire_type, is, &mut self.customHeaders)?;
+                },
+                10 => {
+                    ::protobuf::rt::read_singular_proto3_string_into(wire_type, is, &mut self.worker)?;
+                },
+                11 => {
                     if wire_type != ::protobuf::wire_format::WireTypeVarint {
                         return ::std::result::Result::Err(::protobuf::rt::unexpected_wire_type(wire_type));
                     }
                     let tmp = is.read_int32()?;
                     self.retries = tmp;
                 },
-                7 => {
+                12 => {
                     if wire_type != ::protobuf::wire_format::WireTypeVarint {
                         return ::std::result::Result::Err(::protobuf::rt::unexpected_wire_type(wire_type));
                     }
                     let tmp = is.read_int64()?;
                     self.deadline = tmp;
                 },
-                8 => {
+                13 => {
                     ::protobuf::rt::read_singular_proto3_string_into(wire_type, is, &mut self.variables)?;
                 },
                 _ => {
@@ -797,24 +942,38 @@ impl ::protobuf::Message for ActivatedJob {
         if !self.field_type.is_empty() {
             my_size += ::protobuf::rt::string_size(2, &self.field_type);
         }
-        if let Some(ref v) = self.jobHeaders.as_ref() {
-            let len = v.compute_size();
-            my_size += 1 + ::protobuf::rt::compute_raw_varint32_size(len) + len;
+        if self.workflowInstanceKey != 0 {
+            my_size += ::protobuf::rt::value_size(3, self.workflowInstanceKey, ::protobuf::wire_format::WireTypeVarint);
+        }
+        if !self.bpmnProcessId.is_empty() {
+            my_size += ::protobuf::rt::string_size(4, &self.bpmnProcessId);
+        }
+        if self.workflowDefinitionVersion != 0 {
+            my_size += ::protobuf::rt::value_size(5, self.workflowDefinitionVersion, ::protobuf::wire_format::WireTypeVarint);
+        }
+        if self.workflowKey != 0 {
+            my_size += ::protobuf::rt::value_size(6, self.workflowKey, ::protobuf::wire_format::WireTypeVarint);
+        }
+        if !self.elementId.is_empty() {
+            my_size += ::protobuf::rt::string_size(7, &self.elementId);
+        }
+        if self.elementInstanceKey != 0 {
+            my_size += ::protobuf::rt::value_size(8, self.elementInstanceKey, ::protobuf::wire_format::WireTypeVarint);
         }
         if !self.customHeaders.is_empty() {
-            my_size += ::protobuf::rt::string_size(4, &self.customHeaders);
+            my_size += ::protobuf::rt::string_size(9, &self.customHeaders);
         }
         if !self.worker.is_empty() {
-            my_size += ::protobuf::rt::string_size(5, &self.worker);
+            my_size += ::protobuf::rt::string_size(10, &self.worker);
         }
         if self.retries != 0 {
-            my_size += ::protobuf::rt::value_size(6, self.retries, ::protobuf::wire_format::WireTypeVarint);
+            my_size += ::protobuf::rt::value_size(11, self.retries, ::protobuf::wire_format::WireTypeVarint);
         }
         if self.deadline != 0 {
-            my_size += ::protobuf::rt::value_size(7, self.deadline, ::protobuf::wire_format::WireTypeVarint);
+            my_size += ::protobuf::rt::value_size(12, self.deadline, ::protobuf::wire_format::WireTypeVarint);
         }
         if !self.variables.is_empty() {
-            my_size += ::protobuf::rt::string_size(8, &self.variables);
+            my_size += ::protobuf::rt::string_size(13, &self.variables);
         }
         my_size += ::protobuf::rt::unknown_fields_size(self.get_unknown_fields());
         self.cached_size.set(my_size);
@@ -828,25 +987,38 @@ impl ::protobuf::Message for ActivatedJob {
         if !self.field_type.is_empty() {
             os.write_string(2, &self.field_type)?;
         }
-        if let Some(ref v) = self.jobHeaders.as_ref() {
-            os.write_tag(3, ::protobuf::wire_format::WireTypeLengthDelimited)?;
-            os.write_raw_varint32(v.get_cached_size())?;
-            v.write_to_with_cached_sizes(os)?;
+        if self.workflowInstanceKey != 0 {
+            os.write_int64(3, self.workflowInstanceKey)?;
+        }
+        if !self.bpmnProcessId.is_empty() {
+            os.write_string(4, &self.bpmnProcessId)?;
+        }
+        if self.workflowDefinitionVersion != 0 {
+            os.write_int32(5, self.workflowDefinitionVersion)?;
+        }
+        if self.workflowKey != 0 {
+            os.write_int64(6, self.workflowKey)?;
+        }
+        if !self.elementId.is_empty() {
+            os.write_string(7, &self.elementId)?;
+        }
+        if self.elementInstanceKey != 0 {
+            os.write_int64(8, self.elementInstanceKey)?;
         }
         if !self.customHeaders.is_empty() {
-            os.write_string(4, &self.customHeaders)?;
+            os.write_string(9, &self.customHeaders)?;
         }
         if !self.worker.is_empty() {
-            os.write_string(5, &self.worker)?;
+            os.write_string(10, &self.worker)?;
         }
         if self.retries != 0 {
-            os.write_int32(6, self.retries)?;
+            os.write_int32(11, self.retries)?;
         }
         if self.deadline != 0 {
-            os.write_int64(7, self.deadline)?;
+            os.write_int64(12, self.deadline)?;
         }
         if !self.variables.is_empty() {
-            os.write_string(8, &self.variables)?;
+            os.write_string(13, &self.variables)?;
         }
         os.write_unknown_fields(self.get_unknown_fields())?;
         ::std::result::Result::Ok(())
@@ -900,10 +1072,35 @@ impl ::protobuf::Message for ActivatedJob {
                     |m: &ActivatedJob| { &m.field_type },
                     |m: &mut ActivatedJob| { &mut m.field_type },
                 ));
-                fields.push(::protobuf::reflect::accessor::make_singular_ptr_field_accessor::<_, ::protobuf::types::ProtobufTypeMessage<JobHeaders>>(
-                    "jobHeaders",
-                    |m: &ActivatedJob| { &m.jobHeaders },
-                    |m: &mut ActivatedJob| { &mut m.jobHeaders },
+                fields.push(::protobuf::reflect::accessor::make_simple_field_accessor::<_, ::protobuf::types::ProtobufTypeInt64>(
+                    "workflowInstanceKey",
+                    |m: &ActivatedJob| { &m.workflowInstanceKey },
+                    |m: &mut ActivatedJob| { &mut m.workflowInstanceKey },
+                ));
+                fields.push(::protobuf::reflect::accessor::make_simple_field_accessor::<_, ::protobuf::types::ProtobufTypeString>(
+                    "bpmnProcessId",
+                    |m: &ActivatedJob| { &m.bpmnProcessId },
+                    |m: &mut ActivatedJob| { &mut m.bpmnProcessId },
+                ));
+                fields.push(::protobuf::reflect::accessor::make_simple_field_accessor::<_, ::protobuf::types::ProtobufTypeInt32>(
+                    "workflowDefinitionVersion",
+                    |m: &ActivatedJob| { &m.workflowDefinitionVersion },
+                    |m: &mut ActivatedJob| { &mut m.workflowDefinitionVersion },
+                ));
+                fields.push(::protobuf::reflect::accessor::make_simple_field_accessor::<_, ::protobuf::types::ProtobufTypeInt64>(
+                    "workflowKey",
+                    |m: &ActivatedJob| { &m.workflowKey },
+                    |m: &mut ActivatedJob| { &mut m.workflowKey },
+                ));
+                fields.push(::protobuf::reflect::accessor::make_simple_field_accessor::<_, ::protobuf::types::ProtobufTypeString>(
+                    "elementId",
+                    |m: &ActivatedJob| { &m.elementId },
+                    |m: &mut ActivatedJob| { &mut m.elementId },
+                ));
+                fields.push(::protobuf::reflect::accessor::make_simple_field_accessor::<_, ::protobuf::types::ProtobufTypeInt64>(
+                    "elementInstanceKey",
+                    |m: &ActivatedJob| { &m.elementInstanceKey },
+                    |m: &mut ActivatedJob| { &mut m.elementInstanceKey },
                 ));
                 fields.push(::protobuf::reflect::accessor::make_simple_field_accessor::<_, ::protobuf::types::ProtobufTypeString>(
                     "customHeaders",
@@ -954,7 +1151,12 @@ impl ::protobuf::Clear for ActivatedJob {
     fn clear(&mut self) {
         self.key = 0;
         self.field_type.clear();
-        self.jobHeaders.clear();
+        self.workflowInstanceKey = 0;
+        self.bpmnProcessId.clear();
+        self.workflowDefinitionVersion = 0;
+        self.workflowKey = 0;
+        self.elementId.clear();
+        self.elementInstanceKey = 0;
         self.customHeaders.clear();
         self.worker.clear();
         self.retries = 0;
@@ -971,357 +1173,6 @@ impl ::std::fmt::Debug for ActivatedJob {
 }
 
 impl ::protobuf::reflect::ProtobufValue for ActivatedJob {
-    fn as_ref(&self) -> ::protobuf::reflect::ProtobufValueRef {
-        ::protobuf::reflect::ProtobufValueRef::Message(self)
-    }
-}
-
-#[derive(PartialEq,Clone,Default)]
-pub struct JobHeaders {
-    // message fields
-    pub workflowInstanceKey: i64,
-    pub bpmnProcessId: ::std::string::String,
-    pub workflowDefinitionVersion: i32,
-    pub workflowKey: i64,
-    pub elementId: ::std::string::String,
-    pub elementInstanceKey: i64,
-    // special fields
-    pub unknown_fields: ::protobuf::UnknownFields,
-    pub cached_size: ::protobuf::CachedSize,
-}
-
-impl<'a> ::std::default::Default for &'a JobHeaders {
-    fn default() -> &'a JobHeaders {
-        <JobHeaders as ::protobuf::Message>::default_instance()
-    }
-}
-
-impl JobHeaders {
-    pub fn new() -> JobHeaders {
-        ::std::default::Default::default()
-    }
-
-    // int64 workflowInstanceKey = 1;
-
-
-    pub fn get_workflowInstanceKey(&self) -> i64 {
-        self.workflowInstanceKey
-    }
-    pub fn clear_workflowInstanceKey(&mut self) {
-        self.workflowInstanceKey = 0;
-    }
-
-    // Param is passed by value, moved
-    pub fn set_workflowInstanceKey(&mut self, v: i64) {
-        self.workflowInstanceKey = v;
-    }
-
-    // string bpmnProcessId = 2;
-
-
-    pub fn get_bpmnProcessId(&self) -> &str {
-        &self.bpmnProcessId
-    }
-    pub fn clear_bpmnProcessId(&mut self) {
-        self.bpmnProcessId.clear();
-    }
-
-    // Param is passed by value, moved
-    pub fn set_bpmnProcessId(&mut self, v: ::std::string::String) {
-        self.bpmnProcessId = v;
-    }
-
-    // Mutable pointer to the field.
-    // If field is not initialized, it is initialized with default value first.
-    pub fn mut_bpmnProcessId(&mut self) -> &mut ::std::string::String {
-        &mut self.bpmnProcessId
-    }
-
-    // Take field
-    pub fn take_bpmnProcessId(&mut self) -> ::std::string::String {
-        ::std::mem::replace(&mut self.bpmnProcessId, ::std::string::String::new())
-    }
-
-    // int32 workflowDefinitionVersion = 3;
-
-
-    pub fn get_workflowDefinitionVersion(&self) -> i32 {
-        self.workflowDefinitionVersion
-    }
-    pub fn clear_workflowDefinitionVersion(&mut self) {
-        self.workflowDefinitionVersion = 0;
-    }
-
-    // Param is passed by value, moved
-    pub fn set_workflowDefinitionVersion(&mut self, v: i32) {
-        self.workflowDefinitionVersion = v;
-    }
-
-    // int64 workflowKey = 4;
-
-
-    pub fn get_workflowKey(&self) -> i64 {
-        self.workflowKey
-    }
-    pub fn clear_workflowKey(&mut self) {
-        self.workflowKey = 0;
-    }
-
-    // Param is passed by value, moved
-    pub fn set_workflowKey(&mut self, v: i64) {
-        self.workflowKey = v;
-    }
-
-    // string elementId = 5;
-
-
-    pub fn get_elementId(&self) -> &str {
-        &self.elementId
-    }
-    pub fn clear_elementId(&mut self) {
-        self.elementId.clear();
-    }
-
-    // Param is passed by value, moved
-    pub fn set_elementId(&mut self, v: ::std::string::String) {
-        self.elementId = v;
-    }
-
-    // Mutable pointer to the field.
-    // If field is not initialized, it is initialized with default value first.
-    pub fn mut_elementId(&mut self) -> &mut ::std::string::String {
-        &mut self.elementId
-    }
-
-    // Take field
-    pub fn take_elementId(&mut self) -> ::std::string::String {
-        ::std::mem::replace(&mut self.elementId, ::std::string::String::new())
-    }
-
-    // int64 elementInstanceKey = 6;
-
-
-    pub fn get_elementInstanceKey(&self) -> i64 {
-        self.elementInstanceKey
-    }
-    pub fn clear_elementInstanceKey(&mut self) {
-        self.elementInstanceKey = 0;
-    }
-
-    // Param is passed by value, moved
-    pub fn set_elementInstanceKey(&mut self, v: i64) {
-        self.elementInstanceKey = v;
-    }
-}
-
-impl ::protobuf::Message for JobHeaders {
-    fn is_initialized(&self) -> bool {
-        true
-    }
-
-    fn merge_from(&mut self, is: &mut ::protobuf::CodedInputStream) -> ::protobuf::ProtobufResult<()> {
-        while !is.eof()? {
-            let (field_number, wire_type) = is.read_tag_unpack()?;
-            match field_number {
-                1 => {
-                    if wire_type != ::protobuf::wire_format::WireTypeVarint {
-                        return ::std::result::Result::Err(::protobuf::rt::unexpected_wire_type(wire_type));
-                    }
-                    let tmp = is.read_int64()?;
-                    self.workflowInstanceKey = tmp;
-                },
-                2 => {
-                    ::protobuf::rt::read_singular_proto3_string_into(wire_type, is, &mut self.bpmnProcessId)?;
-                },
-                3 => {
-                    if wire_type != ::protobuf::wire_format::WireTypeVarint {
-                        return ::std::result::Result::Err(::protobuf::rt::unexpected_wire_type(wire_type));
-                    }
-                    let tmp = is.read_int32()?;
-                    self.workflowDefinitionVersion = tmp;
-                },
-                4 => {
-                    if wire_type != ::protobuf::wire_format::WireTypeVarint {
-                        return ::std::result::Result::Err(::protobuf::rt::unexpected_wire_type(wire_type));
-                    }
-                    let tmp = is.read_int64()?;
-                    self.workflowKey = tmp;
-                },
-                5 => {
-                    ::protobuf::rt::read_singular_proto3_string_into(wire_type, is, &mut self.elementId)?;
-                },
-                6 => {
-                    if wire_type != ::protobuf::wire_format::WireTypeVarint {
-                        return ::std::result::Result::Err(::protobuf::rt::unexpected_wire_type(wire_type));
-                    }
-                    let tmp = is.read_int64()?;
-                    self.elementInstanceKey = tmp;
-                },
-                _ => {
-                    ::protobuf::rt::read_unknown_or_skip_group(field_number, wire_type, is, self.mut_unknown_fields())?;
-                },
-            };
-        }
-        ::std::result::Result::Ok(())
-    }
-
-    // Compute sizes of nested messages
-    #[allow(unused_variables)]
-    fn compute_size(&self) -> u32 {
-        let mut my_size = 0;
-        if self.workflowInstanceKey != 0 {
-            my_size += ::protobuf::rt::value_size(1, self.workflowInstanceKey, ::protobuf::wire_format::WireTypeVarint);
-        }
-        if !self.bpmnProcessId.is_empty() {
-            my_size += ::protobuf::rt::string_size(2, &self.bpmnProcessId);
-        }
-        if self.workflowDefinitionVersion != 0 {
-            my_size += ::protobuf::rt::value_size(3, self.workflowDefinitionVersion, ::protobuf::wire_format::WireTypeVarint);
-        }
-        if self.workflowKey != 0 {
-            my_size += ::protobuf::rt::value_size(4, self.workflowKey, ::protobuf::wire_format::WireTypeVarint);
-        }
-        if !self.elementId.is_empty() {
-            my_size += ::protobuf::rt::string_size(5, &self.elementId);
-        }
-        if self.elementInstanceKey != 0 {
-            my_size += ::protobuf::rt::value_size(6, self.elementInstanceKey, ::protobuf::wire_format::WireTypeVarint);
-        }
-        my_size += ::protobuf::rt::unknown_fields_size(self.get_unknown_fields());
-        self.cached_size.set(my_size);
-        my_size
-    }
-
-    fn write_to_with_cached_sizes(&self, os: &mut ::protobuf::CodedOutputStream) -> ::protobuf::ProtobufResult<()> {
-        if self.workflowInstanceKey != 0 {
-            os.write_int64(1, self.workflowInstanceKey)?;
-        }
-        if !self.bpmnProcessId.is_empty() {
-            os.write_string(2, &self.bpmnProcessId)?;
-        }
-        if self.workflowDefinitionVersion != 0 {
-            os.write_int32(3, self.workflowDefinitionVersion)?;
-        }
-        if self.workflowKey != 0 {
-            os.write_int64(4, self.workflowKey)?;
-        }
-        if !self.elementId.is_empty() {
-            os.write_string(5, &self.elementId)?;
-        }
-        if self.elementInstanceKey != 0 {
-            os.write_int64(6, self.elementInstanceKey)?;
-        }
-        os.write_unknown_fields(self.get_unknown_fields())?;
-        ::std::result::Result::Ok(())
-    }
-
-    fn get_cached_size(&self) -> u32 {
-        self.cached_size.get()
-    }
-
-    fn get_unknown_fields(&self) -> &::protobuf::UnknownFields {
-        &self.unknown_fields
-    }
-
-    fn mut_unknown_fields(&mut self) -> &mut ::protobuf::UnknownFields {
-        &mut self.unknown_fields
-    }
-
-    fn as_any(&self) -> &::std::any::Any {
-        self as &::std::any::Any
-    }
-    fn as_any_mut(&mut self) -> &mut ::std::any::Any {
-        self as &mut ::std::any::Any
-    }
-    fn into_any(self: Box<Self>) -> ::std::boxed::Box<::std::any::Any> {
-        self
-    }
-
-    fn descriptor(&self) -> &'static ::protobuf::reflect::MessageDescriptor {
-        Self::descriptor_static()
-    }
-
-    fn new() -> JobHeaders {
-        JobHeaders::new()
-    }
-
-    fn descriptor_static() -> &'static ::protobuf::reflect::MessageDescriptor {
-        static mut descriptor: ::protobuf::lazy::Lazy<::protobuf::reflect::MessageDescriptor> = ::protobuf::lazy::Lazy {
-            lock: ::protobuf::lazy::ONCE_INIT,
-            ptr: 0 as *const ::protobuf::reflect::MessageDescriptor,
-        };
-        unsafe {
-            descriptor.get(|| {
-                let mut fields = ::std::vec::Vec::new();
-                fields.push(::protobuf::reflect::accessor::make_simple_field_accessor::<_, ::protobuf::types::ProtobufTypeInt64>(
-                    "workflowInstanceKey",
-                    |m: &JobHeaders| { &m.workflowInstanceKey },
-                    |m: &mut JobHeaders| { &mut m.workflowInstanceKey },
-                ));
-                fields.push(::protobuf::reflect::accessor::make_simple_field_accessor::<_, ::protobuf::types::ProtobufTypeString>(
-                    "bpmnProcessId",
-                    |m: &JobHeaders| { &m.bpmnProcessId },
-                    |m: &mut JobHeaders| { &mut m.bpmnProcessId },
-                ));
-                fields.push(::protobuf::reflect::accessor::make_simple_field_accessor::<_, ::protobuf::types::ProtobufTypeInt32>(
-                    "workflowDefinitionVersion",
-                    |m: &JobHeaders| { &m.workflowDefinitionVersion },
-                    |m: &mut JobHeaders| { &mut m.workflowDefinitionVersion },
-                ));
-                fields.push(::protobuf::reflect::accessor::make_simple_field_accessor::<_, ::protobuf::types::ProtobufTypeInt64>(
-                    "workflowKey",
-                    |m: &JobHeaders| { &m.workflowKey },
-                    |m: &mut JobHeaders| { &mut m.workflowKey },
-                ));
-                fields.push(::protobuf::reflect::accessor::make_simple_field_accessor::<_, ::protobuf::types::ProtobufTypeString>(
-                    "elementId",
-                    |m: &JobHeaders| { &m.elementId },
-                    |m: &mut JobHeaders| { &mut m.elementId },
-                ));
-                fields.push(::protobuf::reflect::accessor::make_simple_field_accessor::<_, ::protobuf::types::ProtobufTypeInt64>(
-                    "elementInstanceKey",
-                    |m: &JobHeaders| { &m.elementInstanceKey },
-                    |m: &mut JobHeaders| { &mut m.elementInstanceKey },
-                ));
-                ::protobuf::reflect::MessageDescriptor::new::<JobHeaders>(
-                    "JobHeaders",
-                    fields,
-                    file_descriptor_proto()
-                )
-            })
-        }
-    }
-
-    fn default_instance() -> &'static JobHeaders {
-        static mut instance: ::protobuf::lazy::Lazy<JobHeaders> = ::protobuf::lazy::Lazy {
-            lock: ::protobuf::lazy::ONCE_INIT,
-            ptr: 0 as *const JobHeaders,
-        };
-        unsafe {
-            instance.get(JobHeaders::new)
-        }
-    }
-}
-
-impl ::protobuf::Clear for JobHeaders {
-    fn clear(&mut self) {
-        self.workflowInstanceKey = 0;
-        self.bpmnProcessId.clear();
-        self.workflowDefinitionVersion = 0;
-        self.workflowKey = 0;
-        self.elementId.clear();
-        self.elementInstanceKey = 0;
-        self.unknown_fields.clear();
-    }
-}
-
-impl ::std::fmt::Debug for JobHeaders {
-    fn fmt(&self, f: &mut ::std::fmt::Formatter) -> ::std::fmt::Result {
-        ::protobuf::text_format::fmt(self, f)
-    }
-}
-
-impl ::protobuf::reflect::ProtobufValue for JobHeaders {
     fn as_ref(&self) -> ::protobuf::reflect::ProtobufValueRef {
         ::protobuf::reflect::ProtobufValueRef::Message(self)
     }
@@ -2305,7 +2156,7 @@ impl CreateWorkflowInstanceResponse {
         self.version = v;
     }
 
-    // int64 workflowInstanceKey = 5;
+    // int64 workflowInstanceKey = 4;
 
 
     pub fn get_workflowInstanceKey(&self) -> i64 {
@@ -2347,7 +2198,7 @@ impl ::protobuf::Message for CreateWorkflowInstanceResponse {
                     let tmp = is.read_int32()?;
                     self.version = tmp;
                 },
-                5 => {
+                4 => {
                     if wire_type != ::protobuf::wire_format::WireTypeVarint {
                         return ::std::result::Result::Err(::protobuf::rt::unexpected_wire_type(wire_type));
                     }
@@ -2376,7 +2227,7 @@ impl ::protobuf::Message for CreateWorkflowInstanceResponse {
             my_size += ::protobuf::rt::value_size(3, self.version, ::protobuf::wire_format::WireTypeVarint);
         }
         if self.workflowInstanceKey != 0 {
-            my_size += ::protobuf::rt::value_size(5, self.workflowInstanceKey, ::protobuf::wire_format::WireTypeVarint);
+            my_size += ::protobuf::rt::value_size(4, self.workflowInstanceKey, ::protobuf::wire_format::WireTypeVarint);
         }
         my_size += ::protobuf::rt::unknown_fields_size(self.get_unknown_fields());
         self.cached_size.set(my_size);
@@ -2394,7 +2245,7 @@ impl ::protobuf::Message for CreateWorkflowInstanceResponse {
             os.write_int32(3, self.version)?;
         }
         if self.workflowInstanceKey != 0 {
-            os.write_int64(5, self.workflowInstanceKey)?;
+            os.write_int64(4, self.workflowInstanceKey)?;
         }
         os.write_unknown_fields(self.get_unknown_fields())?;
         ::std::result::Result::Ok(())
@@ -5308,7 +5159,7 @@ impl Partition {
         self.partitionId = v;
     }
 
-    // .gateway_protocol.Partition.PartitionBrokerRole role = 3;
+    // .gateway_protocol.Partition.PartitionBrokerRole role = 2;
 
 
     pub fn get_role(&self) -> Partition_PartitionBrokerRole {
@@ -5340,8 +5191,8 @@ impl ::protobuf::Message for Partition {
                     let tmp = is.read_int32()?;
                     self.partitionId = tmp;
                 },
-                3 => {
-                    ::protobuf::rt::read_proto3_enum_with_unknown_fields_into(wire_type, is, &mut self.role, 3, &mut self.unknown_fields)?
+                2 => {
+                    ::protobuf::rt::read_proto3_enum_with_unknown_fields_into(wire_type, is, &mut self.role, 2, &mut self.unknown_fields)?
                 },
                 _ => {
                     ::protobuf::rt::read_unknown_or_skip_group(field_number, wire_type, is, self.mut_unknown_fields())?;
@@ -5359,7 +5210,7 @@ impl ::protobuf::Message for Partition {
             my_size += ::protobuf::rt::value_size(1, self.partitionId, ::protobuf::wire_format::WireTypeVarint);
         }
         if self.role != Partition_PartitionBrokerRole::LEADER {
-            my_size += ::protobuf::rt::enum_size(3, self.role);
+            my_size += ::protobuf::rt::enum_size(2, self.role);
         }
         my_size += ::protobuf::rt::unknown_fields_size(self.get_unknown_fields());
         self.cached_size.set(my_size);
@@ -5371,7 +5222,7 @@ impl ::protobuf::Message for Partition {
             os.write_int32(1, self.partitionId)?;
         }
         if self.role != Partition_PartitionBrokerRole::LEADER {
-            os.write_enum(3, self.role.value())?;
+            os.write_enum(2, self.role.value())?;
         }
         os.write_unknown_fields(self.get_unknown_fields())?;
         ::std::result::Result::Ok(())
@@ -6209,97 +6060,96 @@ impl ::protobuf::reflect::ProtobufValue for SetVariablesResponse {
 }
 
 static file_descriptor_proto_data: &'static [u8] = b"\
-    \n\x13proto/gateway.proto\x12\x10gateway_protocol\"\xaf\x01\n\x13Activat\
+    \n\x13proto/gateway.proto\x12\x10gateway_protocol\"\xd7\x01\n\x13Activat\
     eJobsRequest\x12\x12\n\x04type\x18\x01\x20\x01(\tR\x04type\x12\x16\n\x06\
     worker\x18\x02\x20\x01(\tR\x06worker\x12\x18\n\x07timeout\x18\x03\x20\
     \x01(\x03R\x07timeout\x12,\n\x11maxJobsToActivate\x18\x04\x20\x01(\x05R\
     \x11maxJobsToActivate\x12$\n\rfetchVariable\x18\x05\x20\x03(\tR\rfetchVa\
-    riable\"J\n\x14ActivateJobsResponse\x122\n\x04jobs\x18\x01\x20\x03(\x0b2\
-    \x1e.gateway_protocol.ActivatedJobR\x04jobs\"\x84\x02\n\x0cActivatedJob\
-    \x12\x10\n\x03key\x18\x01\x20\x01(\x03R\x03key\x12\x12\n\x04type\x18\x02\
-    \x20\x01(\tR\x04type\x12<\n\njobHeaders\x18\x03\x20\x01(\x0b2\x1c.gatewa\
-    y_protocol.JobHeadersR\njobHeaders\x12$\n\rcustomHeaders\x18\x04\x20\x01\
-    (\tR\rcustomHeaders\x12\x16\n\x06worker\x18\x05\x20\x01(\tR\x06worker\
-    \x12\x18\n\x07retries\x18\x06\x20\x01(\x05R\x07retries\x12\x1a\n\x08dead\
-    line\x18\x07\x20\x01(\x03R\x08deadline\x12\x1c\n\tvariables\x18\x08\x20\
-    \x01(\tR\tvariables\"\x92\x02\n\nJobHeaders\x120\n\x13workflowInstanceKe\
-    y\x18\x01\x20\x01(\x03R\x13workflowInstanceKey\x12$\n\rbpmnProcessId\x18\
-    \x02\x20\x01(\tR\rbpmnProcessId\x12<\n\x19workflowDefinitionVersion\x18\
-    \x03\x20\x01(\x05R\x19workflowDefinitionVersion\x12\x20\n\x0bworkflowKey\
-    \x18\x04\x20\x01(\x03R\x0bworkflowKey\x12\x1c\n\telementId\x18\x05\x20\
-    \x01(\tR\telementId\x12.\n\x12elementInstanceKey\x18\x06\x20\x01(\x03R\
-    \x12elementInstanceKey\"Q\n\x1dCancelWorkflowInstanceRequest\x120\n\x13w\
-    orkflowInstanceKey\x18\x01\x20\x01(\x03R\x13workflowInstanceKey\"\x20\n\
-    \x1eCancelWorkflowInstanceResponse\"J\n\x12CompleteJobRequest\x12\x16\n\
-    \x06jobKey\x18\x01\x20\x01(\x03R\x06jobKey\x12\x1c\n\tvariables\x18\x02\
-    \x20\x01(\tR\tvariables\"\x15\n\x13CompleteJobResponse\"\x9f\x01\n\x1dCr\
-    eateWorkflowInstanceRequest\x12\x20\n\x0bworkflowKey\x18\x01\x20\x01(\
-    \x03R\x0bworkflowKey\x12$\n\rbpmnProcessId\x18\x02\x20\x01(\tR\rbpmnProc\
-    essId\x12\x18\n\x07version\x18\x03\x20\x01(\x05R\x07version\x12\x1c\n\tv\
-    ariables\x18\x04\x20\x01(\tR\tvariables\"\xb4\x01\n\x1eCreateWorkflowIns\
-    tanceResponse\x12\x20\n\x0bworkflowKey\x18\x01\x20\x01(\x03R\x0bworkflow\
-    Key\x12$\n\rbpmnProcessId\x18\x02\x20\x01(\tR\rbpmnProcessId\x12\x18\n\
-    \x07version\x18\x03\x20\x01(\x05R\x07version\x120\n\x13workflowInstanceK\
-    ey\x18\x05\x20\x01(\x03R\x13workflowInstanceKey\"^\n\x15DeployWorkflowRe\
-    quest\x12E\n\tworkflows\x18\x01\x20\x03(\x0b2'.gateway_protocol.Workflow\
-    RequestObjectR\tworkflows\"\xc3\x01\n\x15WorkflowRequestObject\x12\x12\n\
-    \x04name\x18\x01\x20\x01(\tR\x04name\x12H\n\x04type\x18\x02\x20\x01(\x0e\
-    24.gateway_protocol.WorkflowRequestObject.ResourceTypeR\x04type\x12\x1e\
-    \n\ndefinition\x18\x03\x20\x01(\x0cR\ndefinition\",\n\x0cResourceType\
-    \x12\x08\n\x04FILE\x10\0\x12\x08\n\x04BPMN\x10\x01\x12\x08\n\x04YAML\x10\
-    \x02\"l\n\x16DeployWorkflowResponse\x12\x10\n\x03key\x18\x01\x20\x01(\
-    \x03R\x03key\x12@\n\tworkflows\x18\x02\x20\x03(\x0b2\".gateway_protocol.\
-    WorkflowMetadataR\tworkflows\"\x98\x01\n\x10WorkflowMetadata\x12$\n\rbpm\
-    nProcessId\x18\x01\x20\x01(\tR\rbpmnProcessId\x12\x18\n\x07version\x18\
-    \x02\x20\x01(\x05R\x07version\x12\x20\n\x0bworkflowKey\x18\x03\x20\x01(\
-    \x03R\x0bworkflowKey\x12\"\n\x0cresourceName\x18\x04\x20\x01(\tR\x0creso\
-    urceName\"f\n\x0eFailJobRequest\x12\x16\n\x06jobKey\x18\x01\x20\x01(\x03\
-    R\x06jobKey\x12\x18\n\x07retries\x18\x02\x20\x01(\x05R\x07retries\x12\"\
-    \n\x0cerrorMessage\x18\x03\x20\x01(\tR\x0cerrorMessage\"\x11\n\x0fFailJo\
-    bResponse\"\xaf\x01\n\x15PublishMessageRequest\x12\x12\n\x04name\x18\x01\
-    \x20\x01(\tR\x04name\x12&\n\x0ecorrelationKey\x18\x02\x20\x01(\tR\x0ecor\
-    relationKey\x12\x1e\n\ntimeToLive\x18\x03\x20\x01(\x03R\ntimeToLive\x12\
-    \x1c\n\tmessageId\x18\x04\x20\x01(\tR\tmessageId\x12\x1c\n\tvariables\
-    \x18\x05\x20\x01(\tR\tvariables\"\x18\n\x16PublishMessageResponse\":\n\
-    \x16ResolveIncidentRequest\x12\x20\n\x0bincidentKey\x18\x01\x20\x01(\x03\
-    R\x0bincidentKey\"\x19\n\x17ResolveIncidentResponse\"\x11\n\x0fTopologyR\
-    equest\"\xc4\x01\n\x10TopologyResponse\x126\n\x07brokers\x18\x01\x20\x03\
-    (\x0b2\x1c.gateway_protocol.BrokerInfoR\x07brokers\x12\x20\n\x0bclusterS\
-    ize\x18\x02\x20\x01(\x05R\x0bclusterSize\x12(\n\x0fpartitionsCount\x18\
-    \x03\x20\x01(\x05R\x0fpartitionsCount\x12,\n\x11replicationFactor\x18\
-    \x04\x20\x01(\x05R\x11replicationFactor\"\x89\x01\n\nBrokerInfo\x12\x16\
-    \n\x06nodeId\x18\x01\x20\x01(\x05R\x06nodeId\x12\x12\n\x04host\x18\x02\
-    \x20\x01(\tR\x04host\x12\x12\n\x04port\x18\x03\x20\x01(\x05R\x04port\x12\
-    ;\n\npartitions\x18\x04\x20\x03(\x0b2\x1b.gateway_protocol.PartitionR\np\
-    artitions\"\xa3\x01\n\tPartition\x12\x20\n\x0bpartitionId\x18\x01\x20\
-    \x01(\x05R\x0bpartitionId\x12C\n\x04role\x18\x03\x20\x01(\x0e2/.gateway_\
-    protocol.Partition.PartitionBrokerRoleR\x04role\"/\n\x13PartitionBrokerR\
-    ole\x12\n\n\x06LEADER\x10\0\x12\x0c\n\x08FOLLOWER\x10\x01\"K\n\x17Update\
-    JobRetriesRequest\x12\x16\n\x06jobKey\x18\x01\x20\x01(\x03R\x06jobKey\
-    \x12\x18\n\x07retries\x18\x02\x20\x01(\x05R\x07retries\"\x1a\n\x18Update\
-    JobRetriesResponse\"y\n\x13SetVariablesRequest\x12.\n\x12elementInstance\
-    Key\x18\x01\x20\x01(\x03R\x12elementInstanceKey\x12\x1c\n\tvariables\x18\
-    \x02\x20\x01(\tR\tvariables\x12\x14\n\x05local\x18\x03\x20\x01(\x08R\x05\
-    local\"\x16\n\x14SetVariablesResponse2\xf5\x08\n\x07Gateway\x12a\n\x0cAc\
-    tivateJobs\x12%.gateway_protocol.ActivateJobsRequest\x1a&.gateway_protoc\
-    ol.ActivateJobsResponse\"\00\x01\x12}\n\x16CancelWorkflowInstance\x12/.g\
-    ateway_protocol.CancelWorkflowInstanceRequest\x1a0.gateway_protocol.Canc\
-    elWorkflowInstanceResponse\"\0\x12\\\n\x0bCompleteJob\x12$.gateway_proto\
-    col.CompleteJobRequest\x1a%.gateway_protocol.CompleteJobResponse\"\0\x12\
-    }\n\x16CreateWorkflowInstance\x12/.gateway_protocol.CreateWorkflowInstan\
-    ceRequest\x1a0.gateway_protocol.CreateWorkflowInstanceResponse\"\0\x12e\
-    \n\x0eDeployWorkflow\x12'.gateway_protocol.DeployWorkflowRequest\x1a(.ga\
-    teway_protocol.DeployWorkflowResponse\"\0\x12P\n\x07FailJob\x12\x20.gate\
-    way_protocol.FailJobRequest\x1a!.gateway_protocol.FailJobResponse\"\0\
-    \x12e\n\x0ePublishMessage\x12'.gateway_protocol.PublishMessageRequest\
-    \x1a(.gateway_protocol.PublishMessageResponse\"\0\x12h\n\x0fResolveIncid\
-    ent\x12(.gateway_protocol.ResolveIncidentRequest\x1a).gateway_protocol.R\
-    esolveIncidentResponse\"\0\x12_\n\x0cSetVariables\x12%.gateway_protocol.\
-    SetVariablesRequest\x1a&.gateway_protocol.SetVariablesResponse\"\0\x12S\
-    \n\x08Topology\x12!.gateway_protocol.TopologyRequest\x1a\".gateway_proto\
-    col.TopologyResponse\"\0\x12k\n\x10UpdateJobRetries\x12).gateway_protoco\
-    l.UpdateJobRetriesRequest\x1a*.gateway_protocol.UpdateJobRetriesResponse\
-    \"\0B!\n\x19io.zeebe.gateway.protocolP\0Z\x02pbb\x06proto3\
+    riable\x12&\n\x0erequestTimeout\x18\x06\x20\x01(\x03R\x0erequestTimeout\
+    \"J\n\x14ActivateJobsResponse\x122\n\x04jobs\x18\x01\x20\x03(\x0b2\x1e.g\
+    ateway_protocol.ActivatedJobR\x04jobs\"\xcc\x03\n\x0cActivatedJob\x12\
+    \x10\n\x03key\x18\x01\x20\x01(\x03R\x03key\x12\x12\n\x04type\x18\x02\x20\
+    \x01(\tR\x04type\x120\n\x13workflowInstanceKey\x18\x03\x20\x01(\x03R\x13\
+    workflowInstanceKey\x12$\n\rbpmnProcessId\x18\x04\x20\x01(\tR\rbpmnProce\
+    ssId\x12<\n\x19workflowDefinitionVersion\x18\x05\x20\x01(\x05R\x19workfl\
+    owDefinitionVersion\x12\x20\n\x0bworkflowKey\x18\x06\x20\x01(\x03R\x0bwo\
+    rkflowKey\x12\x1c\n\telementId\x18\x07\x20\x01(\tR\telementId\x12.\n\x12\
+    elementInstanceKey\x18\x08\x20\x01(\x03R\x12elementInstanceKey\x12$\n\rc\
+    ustomHeaders\x18\t\x20\x01(\tR\rcustomHeaders\x12\x16\n\x06worker\x18\n\
+    \x20\x01(\tR\x06worker\x12\x18\n\x07retries\x18\x0b\x20\x01(\x05R\x07ret\
+    ries\x12\x1a\n\x08deadline\x18\x0c\x20\x01(\x03R\x08deadline\x12\x1c\n\t\
+    variables\x18\r\x20\x01(\tR\tvariables\"Q\n\x1dCancelWorkflowInstanceReq\
+    uest\x120\n\x13workflowInstanceKey\x18\x01\x20\x01(\x03R\x13workflowInst\
+    anceKey\"\x20\n\x1eCancelWorkflowInstanceResponse\"J\n\x12CompleteJobReq\
+    uest\x12\x16\n\x06jobKey\x18\x01\x20\x01(\x03R\x06jobKey\x12\x1c\n\tvari\
+    ables\x18\x02\x20\x01(\tR\tvariables\"\x15\n\x13CompleteJobResponse\"\
+    \x9f\x01\n\x1dCreateWorkflowInstanceRequest\x12\x20\n\x0bworkflowKey\x18\
+    \x01\x20\x01(\x03R\x0bworkflowKey\x12$\n\rbpmnProcessId\x18\x02\x20\x01(\
+    \tR\rbpmnProcessId\x12\x18\n\x07version\x18\x03\x20\x01(\x05R\x07version\
+    \x12\x1c\n\tvariables\x18\x04\x20\x01(\tR\tvariables\"\xb4\x01\n\x1eCrea\
+    teWorkflowInstanceResponse\x12\x20\n\x0bworkflowKey\x18\x01\x20\x01(\x03\
+    R\x0bworkflowKey\x12$\n\rbpmnProcessId\x18\x02\x20\x01(\tR\rbpmnProcessI\
+    d\x12\x18\n\x07version\x18\x03\x20\x01(\x05R\x07version\x120\n\x13workfl\
+    owInstanceKey\x18\x04\x20\x01(\x03R\x13workflowInstanceKey\"^\n\x15Deplo\
+    yWorkflowRequest\x12E\n\tworkflows\x18\x01\x20\x03(\x0b2'.gateway_protoc\
+    ol.WorkflowRequestObjectR\tworkflows\"\xc3\x01\n\x15WorkflowRequestObjec\
+    t\x12\x12\n\x04name\x18\x01\x20\x01(\tR\x04name\x12H\n\x04type\x18\x02\
+    \x20\x01(\x0e24.gateway_protocol.WorkflowRequestObject.ResourceTypeR\x04\
+    type\x12\x1e\n\ndefinition\x18\x03\x20\x01(\x0cR\ndefinition\",\n\x0cRes\
+    ourceType\x12\x08\n\x04FILE\x10\0\x12\x08\n\x04BPMN\x10\x01\x12\x08\n\
+    \x04YAML\x10\x02\"l\n\x16DeployWorkflowResponse\x12\x10\n\x03key\x18\x01\
+    \x20\x01(\x03R\x03key\x12@\n\tworkflows\x18\x02\x20\x03(\x0b2\".gateway_\
+    protocol.WorkflowMetadataR\tworkflows\"\x98\x01\n\x10WorkflowMetadata\
+    \x12$\n\rbpmnProcessId\x18\x01\x20\x01(\tR\rbpmnProcessId\x12\x18\n\x07v\
+    ersion\x18\x02\x20\x01(\x05R\x07version\x12\x20\n\x0bworkflowKey\x18\x03\
+    \x20\x01(\x03R\x0bworkflowKey\x12\"\n\x0cresourceName\x18\x04\x20\x01(\t\
+    R\x0cresourceName\"f\n\x0eFailJobRequest\x12\x16\n\x06jobKey\x18\x01\x20\
+    \x01(\x03R\x06jobKey\x12\x18\n\x07retries\x18\x02\x20\x01(\x05R\x07retri\
+    es\x12\"\n\x0cerrorMessage\x18\x03\x20\x01(\tR\x0cerrorMessage\"\x11\n\
+    \x0fFailJobResponse\"\xaf\x01\n\x15PublishMessageRequest\x12\x12\n\x04na\
+    me\x18\x01\x20\x01(\tR\x04name\x12&\n\x0ecorrelationKey\x18\x02\x20\x01(\
+    \tR\x0ecorrelationKey\x12\x1e\n\ntimeToLive\x18\x03\x20\x01(\x03R\ntimeT\
+    oLive\x12\x1c\n\tmessageId\x18\x04\x20\x01(\tR\tmessageId\x12\x1c\n\tvar\
+    iables\x18\x05\x20\x01(\tR\tvariables\"\x18\n\x16PublishMessageResponse\
+    \":\n\x16ResolveIncidentRequest\x12\x20\n\x0bincidentKey\x18\x01\x20\x01\
+    (\x03R\x0bincidentKey\"\x19\n\x17ResolveIncidentResponse\"\x11\n\x0fTopo\
+    logyRequest\"\xc4\x01\n\x10TopologyResponse\x126\n\x07brokers\x18\x01\
+    \x20\x03(\x0b2\x1c.gateway_protocol.BrokerInfoR\x07brokers\x12\x20\n\x0b\
+    clusterSize\x18\x02\x20\x01(\x05R\x0bclusterSize\x12(\n\x0fpartitionsCou\
+    nt\x18\x03\x20\x01(\x05R\x0fpartitionsCount\x12,\n\x11replicationFactor\
+    \x18\x04\x20\x01(\x05R\x11replicationFactor\"\x89\x01\n\nBrokerInfo\x12\
+    \x16\n\x06nodeId\x18\x01\x20\x01(\x05R\x06nodeId\x12\x12\n\x04host\x18\
+    \x02\x20\x01(\tR\x04host\x12\x12\n\x04port\x18\x03\x20\x01(\x05R\x04port\
+    \x12;\n\npartitions\x18\x04\x20\x03(\x0b2\x1b.gateway_protocol.Partition\
+    R\npartitions\"\xa3\x01\n\tPartition\x12\x20\n\x0bpartitionId\x18\x01\
+    \x20\x01(\x05R\x0bpartitionId\x12C\n\x04role\x18\x02\x20\x01(\x0e2/.gate\
+    way_protocol.Partition.PartitionBrokerRoleR\x04role\"/\n\x13PartitionBro\
+    kerRole\x12\n\n\x06LEADER\x10\0\x12\x0c\n\x08FOLLOWER\x10\x01\"K\n\x17Up\
+    dateJobRetriesRequest\x12\x16\n\x06jobKey\x18\x01\x20\x01(\x03R\x06jobKe\
+    y\x12\x18\n\x07retries\x18\x02\x20\x01(\x05R\x07retries\"\x1a\n\x18Updat\
+    eJobRetriesResponse\"y\n\x13SetVariablesRequest\x12.\n\x12elementInstanc\
+    eKey\x18\x01\x20\x01(\x03R\x12elementInstanceKey\x12\x1c\n\tvariables\
+    \x18\x02\x20\x01(\tR\tvariables\x12\x14\n\x05local\x18\x03\x20\x01(\x08R\
+    \x05local\"\x16\n\x14SetVariablesResponse2\xf5\x08\n\x07Gateway\x12a\n\
+    \x0cActivateJobs\x12%.gateway_protocol.ActivateJobsRequest\x1a&.gateway_\
+    protocol.ActivateJobsResponse\"\00\x01\x12}\n\x16CancelWorkflowInstance\
+    \x12/.gateway_protocol.CancelWorkflowInstanceRequest\x1a0.gateway_protoc\
+    ol.CancelWorkflowInstanceResponse\"\0\x12\\\n\x0bCompleteJob\x12$.gatewa\
+    y_protocol.CompleteJobRequest\x1a%.gateway_protocol.CompleteJobResponse\
+    \"\0\x12}\n\x16CreateWorkflowInstance\x12/.gateway_protocol.CreateWorkfl\
+    owInstanceRequest\x1a0.gateway_protocol.CreateWorkflowInstanceResponse\"\
+    \0\x12e\n\x0eDeployWorkflow\x12'.gateway_protocol.DeployWorkflowRequest\
+    \x1a(.gateway_protocol.DeployWorkflowResponse\"\0\x12P\n\x07FailJob\x12\
+    \x20.gateway_protocol.FailJobRequest\x1a!.gateway_protocol.FailJobRespon\
+    se\"\0\x12e\n\x0ePublishMessage\x12'.gateway_protocol.PublishMessageRequ\
+    est\x1a(.gateway_protocol.PublishMessageResponse\"\0\x12h\n\x0fResolveIn\
+    cident\x12(.gateway_protocol.ResolveIncidentRequest\x1a).gateway_protoco\
+    l.ResolveIncidentResponse\"\0\x12_\n\x0cSetVariables\x12%.gateway_protoc\
+    ol.SetVariablesRequest\x1a&.gateway_protocol.SetVariablesResponse\"\0\
+    \x12S\n\x08Topology\x12!.gateway_protocol.TopologyRequest\x1a\".gateway_\
+    protocol.TopologyResponse\"\0\x12k\n\x10UpdateJobRetries\x12).gateway_pr\
+    otocol.UpdateJobRetriesRequest\x1a*.gateway_protocol.UpdateJobRetriesRes\
+    ponse\"\0B!\n\x19io.zeebe.gateway.protocolP\0Z\x02pbb\x06proto3\
 ";
 
 static mut file_descriptor_proto_lazy: ::protobuf::lazy::Lazy<::protobuf::descriptor::FileDescriptorProto> = ::protobuf::lazy::Lazy {
