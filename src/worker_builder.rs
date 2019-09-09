@@ -1,7 +1,7 @@
 use std::sync::Arc;
-use std::panic::{UnwindSafe, AssertUnwindSafe};
+use std::panic::{AssertUnwindSafe};
 use std::collections::HashMap;
-use crate::{ActivatedJobs, JobResult, ActivatedJob, ActivateJobs, PanicOption, CompleteJob, Client, WorkerConfig};
+use crate::{JobResult, ActivatedJob, ActivateJobs, PanicOption, CompleteJob, Client, WorkerConfig};
 use futures::{Future, FutureExt, Stream, StreamExt};
 use std::pin::Pin;
 
@@ -24,12 +24,12 @@ impl<S: Stream + Unpin> WorkerBuilder<S> {
         }
     }
 
-    pub async fn into_future(mut self) {
+    pub async fn into_future(self) {
         let client = self.client;
         let v: Vec<_> = self.handlers.into_iter().map(|(n, (wc, f))| (n,wc,f, client.clone())).collect();
         let mut interval = self.interval;
         while let Some(_) = interval.next().await {
-            let i = v.iter().cloned().map(|(n, wc, f, client)| {
+            let i = v.iter().cloned().map(|(_n, wc, f, client)| {
                 async move {
                     let activate_jobs = ActivateJobs::new(wc.worker_name.clone(), wc.job_type.clone(), wc.timeout, wc.max_jobs_to_activate);
                     let mut activate_jobs_stream = client.activate_jobs(activate_jobs);
@@ -51,7 +51,7 @@ impl<S: Stream + Unpin> WorkerBuilder<S> {
                                                 let complete_job = CompleteJob { job_key, variables };
                                                 client.complete_job(complete_job).await.unwrap();
                                             },
-                                            Ok(JobResult::Fail {error_message}) => {
+                                            Ok(JobResult::Fail {..}) => {
                                                 client.fail_job(job_key, retries - 1).await.unwrap();
                                             }
                                             Err(_) => {

@@ -1,6 +1,6 @@
 use crate::gateway;
 use crate::gateway_grpc::*;
-use futures::future::{Future, FutureExt, TryFuture, TryFutureExt};
+use futures::future::{Future, TryFutureExt};
 use futures::stream::{Stream, StreamExt, TryStreamExt};
 use futures::compat::{Future01CompatExt, Stream01CompatExt};
 use grpc::ClientStubExt;
@@ -9,9 +9,7 @@ use std::sync::Arc;
 //use crate::worker::{JobResult, JobWorker, PanicOption};
 use futures_cpupool::CpuPool;
 use serde::Serialize;
-use std::time::Duration;
-use crate::gateway::{TopologyResponse, ActivateJobsResponse};
-use crate::Error::TopologyError;
+use crate::gateway::{TopologyResponse};
 
 #[derive(Debug, Fail)]
 pub enum Error {
@@ -179,44 +177,9 @@ impl Client {
             .map_err(|e| Error::PublishMessageError(e))
             .map_ok(|_| ())
     }
-
-
-//    pub fn worker<H, F, S1, S2>(
-//        &mut self,
-//        worker: S1,
-//        job_type: S2,
-//        timeout: Duration,
-//        max_amount: u16,
-//        panic_option: PanicOption,
-//        handler: H,
-//    ) -> JobWorker<H, F>
-//    where
-//        H: Fn(ActivatedJob) -> F + Send + Sync,
-//        F: IntoFuture<Item = JobResult, Error = String> + Send,
-//        <F as IntoFuture>::Future: Send,
-//        S1: Into<String>,
-//        S2: Into<String>,
-//    {
-//        let thread_pool = self.thread_pool.get_or_insert(CpuPool::new_num_cpus());
-//
-//        let timeout = timeout.as_millis() as i64;
-//
-//        assert!(timeout >= 0, "timeout must be able to cast to i64 and must not exceed i64 maximum in milliseconds or be negative");
-//
-//        JobWorker::new(
-//            worker.into(),
-//            job_type.into(),
-//            timeout,
-//            max_amount,
-//            panic_option,
-//            self.gateway_client.clone(),
-//            handler,
-//            thread_pool.clone(),
-//        )
-//    }
 }
 
-/// The toplogy of the zeebe cluster.
+/// The topology of the zeebe cluster.
 #[derive(Debug)]
 pub struct Topology {
     pub brokers: Vec<BrokerInfo>,
