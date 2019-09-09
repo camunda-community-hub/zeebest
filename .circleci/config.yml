@@ -53,3 +53,9 @@ jobs:
       - run:
           name: test
           command: cargo test
+workflows:
+  version: 2
+  build:
+    jobs:
+      - stable
+      - nightly
