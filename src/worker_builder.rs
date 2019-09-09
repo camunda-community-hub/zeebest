@@ -1,7 +1,7 @@
 use std::sync::Arc;
 use std::panic::{AssertUnwindSafe};
 use std::collections::HashMap;
-use crate::{JobResult, ActivatedJob, ActivateJobs, PanicOption, CompleteJob, Client, WorkerConfig};
+use crate::{JobResult, ActivatedJob, ActivateJobs, PanicOption, CompleteJob, Client, WorkerConfig, ActivatedJobs};
 use futures::{Future, FutureExt, Stream, StreamExt};
 use std::pin::Pin;
 
@@ -29,53 +29,59 @@ impl<S: Stream + Unpin> WorkerBuilder<S> {
 
     pub async fn into_future(self) {
         let client = self.client;
-        let v: Vec<_> = self.handlers.into_iter().map(|(n, (wc, f))| (n,wc,f, client.clone())).collect();
+        let units: Vec<_> = self.handlers.into_iter().map(|(_, (worker_config, job_handler))| Unit { worker_config, job_handler, client: client.clone() }).collect();
         let mut interval = self.interval;
         while let Some(_) = interval.next().await {
-            let i = v.iter().cloned().map(|(_n, wc, f, client)| {
-                async move {
-                    let activate_jobs = ActivateJobs::new(wc.worker_name.clone(), wc.job_type.clone(), wc.timeout, wc.max_jobs_to_activate);
-                    let mut activate_jobs_stream = client.activate_jobs(activate_jobs);
-                    loop {
-                        match activate_jobs_stream.next().await {
-                            Some(Ok(j)) => {
-                                let it = j.activated_jobs.into_iter().map(|aj| {
-                                    async {
-                                        Self::process_activated_job(f.clone(), client.clone(), wc.panic_option, aj)
-                                    }
-                                });
-                                futures::future::join_all(it).await;
-                            },
-                            Some(Err(e)) => {
-                                println!("there was a problem activating jobs, {:?}", e);
-                                break;
-                            },
-                            None => {
-                                break;
-                            }
-                        }
-                    }
-                }
-            });
-            futures::future::join_all(i).await;
+            let work_units_iterator = units.iter().map(Self::activate_and_process_jobs_for_unit);
+            futures::future::join_all(work_units_iterator).await;
         }
     }
 
-    async fn process_activated_job(job_handler: JobHandlerFn, client: Client, panic_option: PanicOption, activated_job: ActivatedJob) {
+    async fn activate_and_process_jobs_for_unit(unit: &Unit) {
+        let job_handler = unit.job_handler.clone();
+        let worker_name = unit.worker_config.worker_name.clone();
+        let job_type = unit.worker_config.job_type.clone();
+        let timeout = unit.worker_config.timeout;
+        let max_jobs_to_activate = unit.worker_config.max_jobs_to_activate;
+        let activate_jobs = ActivateJobs::new(worker_name, job_type, timeout, max_jobs_to_activate);
+        let panic_option = unit.worker_config.panic_option;
+        let mut activate_jobs_stream = unit.client.activate_jobs(activate_jobs);
+        loop {
+            match activate_jobs_stream.next().await {
+                Some(Ok(ActivatedJobs { activated_jobs })) => {
+                    let it = activated_jobs.into_iter().map(|aj| {
+                        async {
+                            Self::process_activated_job(unit, aj)
+                        }
+                    });
+                    futures::future::join_all(it).await;
+                },
+                Some(Err(e)) => {
+                    println!("there was a problem activating jobs, {:?}", e);
+                    break;
+                },
+                None => {
+                    break;
+                }
+            }
+        }
+    }
+
+    async fn process_activated_job(unit: &Unit, activated_job: ActivatedJob) {
         let job_key: i64 = activated_job.key;
         let retries = activated_job.retries;
-        match AssertUnwindSafe(job_handler(activated_job)).catch_unwind().await {
+        match AssertUnwindSafe((unit.job_handler)(activated_job)).catch_unwind().await {
             Ok(JobResult::NoAction) => {},
             Ok(JobResult::Complete {variables}) => {
                 println!("complete job");
                 let complete_job = CompleteJob { job_key, variables };
-                client.complete_job(complete_job).await.unwrap();
+                unit.client.complete_job(complete_job).await.unwrap();
             },
             Ok(JobResult::Fail {..}) => {
-                client.fail_job(job_key, retries - 1).await.unwrap();
+                unit.client.fail_job(job_key, retries - 1).await.unwrap();
             }
             Err(_) => {
-                match panic_option {
+                match unit.worker_config.panic_option {
                     PanicOption::DoNothingOnPanic => {
                     },
                     PanicOption::FailJobOnPanic => {
@@ -84,4 +90,10 @@ impl<S: Stream + Unpin> WorkerBuilder<S> {
             },
         };
     }
+}
+
+struct Unit {
+    job_handler: JobHandlerFn,
+    client: Client,
+    worker_config: WorkerConfig,
 }
