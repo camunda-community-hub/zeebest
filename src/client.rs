@@ -7,7 +7,6 @@ use grpc::ClientStubExt;
 use std::sync::Arc;
 
 //use crate::worker::{JobResult, JobWorker, PanicOption};
-use futures_cpupool::CpuPool;
 use serde::Serialize;
 use crate::gateway::{TopologyResponse};
 
@@ -59,7 +58,6 @@ impl Into<i32> for WorkflowVersion {
 #[derive(Clone)]
 pub struct Client {
     pub(crate) gateway_client: Arc<GatewayClient>,
-    thread_pool: Option<CpuPool>,
 }
 
 impl Client {
@@ -70,7 +68,6 @@ impl Client {
             .map(Arc::new)
             .map(|gateway_client| Client {
                 gateway_client,
-                thread_pool: None,
             })
     }
 
