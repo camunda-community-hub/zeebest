@@ -14,9 +14,6 @@ mod gateway;
 mod gateway_grpc;
 
 #[cfg(feature = "worker")]
-pub mod runtime_builder;
-
-#[cfg(feature = "worker")]
 pub mod worker_builder;
 
 #[cfg(feature = "worker")]

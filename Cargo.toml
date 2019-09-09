@@ -30,4 +30,4 @@ runtime = "0.3.0-alpha.7"
 
 [features]
 default = []
-worker = ["runtime"]
+worker = []
