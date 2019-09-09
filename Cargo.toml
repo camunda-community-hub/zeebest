@@ -27,8 +27,7 @@ protoc-rust-grpc = "0.6.1"
 atomic-counter = "1.0.1"
 serde_derive = "1.0.91"
 structopt = "0.2.16"
-tokio = "0.2.0-alpha.4"
-runtime-tokio = "0.3.0-alpha.6"
+runtime = "0.3.0-alpha.7"
 
 [features]
 # The default set of optional packages. Most people will want to use these

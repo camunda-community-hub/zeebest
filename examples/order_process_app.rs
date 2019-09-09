@@ -164,7 +164,7 @@ struct Payment {
 //                    }
 //                }
 
-#[runtime::main(runtime_tokio::Tokio)]
+#[runtime::main]
 async fn main() {
     let mut client = Client::new("127.0.0.1", 26500).expect("Could not connect to broker.");
 

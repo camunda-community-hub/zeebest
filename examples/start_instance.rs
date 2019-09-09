@@ -3,6 +3,7 @@ extern crate serde_derive;
 
 use futures::Future;
 use zeebest::{Client, WorkflowInstance, WorkflowVersion};
+use futures::executor::block_on;
 
 #[derive(Serialize)]
 struct PlaceOrder {
@@ -22,10 +23,8 @@ fn main() {
     .variables(&place_order)
     .unwrap();
 
-    let result = client
-        .create_workflow_instance(workflow_instance)
-        .wait()
-        .unwrap();
+    let result = block_on(client
+        .create_workflow_instance(workflow_instance));
 
     println!("create workflow result: {:?}", result);
 }

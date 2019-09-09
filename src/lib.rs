@@ -12,8 +12,6 @@ extern crate failure;
 mod client;
 mod gateway;
 mod gateway_grpc;
-#[cfg(test)]
-mod gateway_mock;
 
 #[cfg(feature = "worker")]
 pub mod runtime_builder;

@@ -1,13 +1,12 @@
 use futures::Future;
 use zeebest::Client;
+use futures::executor::block_on;
 
 fn main() {
     let client = Client::new("127.0.0.1", 26500).unwrap();
 
-    let result = client
-        .deploy_bpmn_workflow("simple-process", SIMPLE_PROCESS_XML.into())
-        .wait()
-        .unwrap();
+    let result = block_on(client
+        .deploy_bpmn_workflow("simple-process", SIMPLE_PROCESS_XML.into()));
 
     println!("deploy workflow result: {:?}", result);
 }
