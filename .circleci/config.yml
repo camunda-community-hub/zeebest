@@ -1,7 +1,33 @@
 version: 2.1
 
 jobs:
-  build:
+  nightly:
+    docker:
+      - image: rustlang/rust:nightly
+    steps:
+      - checkout
+      - restore_cache:
+          key: v1-nightly-cargo-cache-{{ arch }}-{{ checksum "Cargo.lock" }}
+      - run:
+          name: Version information
+          command: rustc --version; cargo --version; rustup --version
+      - run:
+          name: Install protoc
+          command: apt update; apt install protobuf-compiler -y
+      - run:
+          name: build
+          command: cargo +nightly build --features worker --examples
+      - save_cache:
+          paths:
+            - /usr/local/cargo/registry
+            - target/debug/.fingerprint
+            - target/debug/build
+            - target/debug/deps
+          key: v1-nightly-cargo-cache-{{ arch }}-{{ checksum "Cargo.lock" }}
+      - run:
+          name: test
+          command: cargo test
+  stable:
     docker:
       - image: rust:1
     steps:
@@ -16,7 +42,7 @@ jobs:
           command: apt update; apt install protobuf-compiler -y
       - run:
           name: build
-          command: cargo build; cargo +nightly build --features worker --examples
+          command: cargo build
       - save_cache:
           paths:
             - /usr/local/cargo/registry
