@@ -133,7 +133,7 @@ async fn main() {
                 PanicOption::FailJobOnPanic,
             );
 
-            WorkerBuilder::new_with_interval_and_client(Interval::new(Duration::from_secs(5)), Arc::new(client))
+            WorkerBuilder::new_with_interval_and_client(Interval::new(Duration::from_secs(5)), client)
                 .add_job_handler("initiate-payment", initial_payment_config, initial_payment_handler)
                 .add_job_handler("ship-without-insurance", ship_without_insurance_config, |_| async { JobResult::Complete { variables: None } }.boxed())
                 .add_job_handler("ship-with-insurance", ship_with_insurance_config, |_| async { JobResult::Complete { variables: None } }.boxed())

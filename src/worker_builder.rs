@@ -5,9 +5,11 @@ use crate::{JobResult, ActivatedJob, ActivateJobs, PanicOption, CompleteJob, Cli
 use futures::{Future, FutureExt, Stream, StreamExt};
 use std::pin::Pin;
 
+type JobHandlerFn = Arc<dyn Fn(ActivatedJob) -> Pin<Box<dyn Future<Output = JobResult> + Send>> + Send + Sync>;
+
 pub struct WorkerBuilder<S: Stream + Unpin> {
     interval: S,
-    client: Arc<Client>,
+    client: Client,
     handlers: HashMap<&'static str, (WorkerConfig, Arc<dyn Fn(ActivatedJob) -> Pin<Box<dyn Future<Output = JobResult> + Send>> + Send + Sync>)>,
 }
 
@@ -17,7 +19,7 @@ impl<S: Stream + Unpin> WorkerBuilder<S> {
         self
     }
 
-    pub fn new_with_interval_and_client(interval: S, client: Arc<Client>) -> Self {
+    pub fn new_with_interval_and_client(interval: S, client: Client) -> Self {
         WorkerBuilder {
             interval,
             client,
@@ -39,30 +41,7 @@ impl<S: Stream + Unpin> WorkerBuilder<S> {
                             Some(Ok(j)) => {
                                 let it = j.activated_jobs.into_iter().map(|aj| {
                                     async {
-                                        let f = f.clone();
-                                        let client = client.clone();
-                                        let job_key: i64 = aj.key;
-                                        let retries = aj.retries;
-                                        let panic_option = wc.panic_option;
-                                        match AssertUnwindSafe(f(aj)).catch_unwind().await {
-                                            Ok(JobResult::NoAction) => {},
-                                            Ok(JobResult::Complete {variables}) => {
-                                                println!("complete job");
-                                                let complete_job = CompleteJob { job_key, variables };
-                                                client.complete_job(complete_job).await.unwrap();
-                                            },
-                                            Ok(JobResult::Fail {..}) => {
-                                                client.fail_job(job_key, retries - 1).await.unwrap();
-                                            }
-                                            Err(_) => {
-                                                match panic_option {
-                                                    PanicOption::DoNothingOnPanic => {
-                                                    },
-                                                    PanicOption::FailJobOnPanic => {
-                                                    }
-                                                }
-                                            },
-                                        };
+                                        Self::process_activated_job(f.clone(), client.clone(), wc.panic_option, aj)
                                     }
                                 });
                                 futures::future::join_all(it).await;
@@ -80,5 +59,29 @@ impl<S: Stream + Unpin> WorkerBuilder<S> {
             });
             futures::future::join_all(i).await;
         }
+    }
+
+    async fn process_activated_job(job_handler: JobHandlerFn, client: Client, panic_option: PanicOption, activated_job: ActivatedJob) {
+        let job_key: i64 = activated_job.key;
+        let retries = activated_job.retries;
+        match AssertUnwindSafe(job_handler(activated_job)).catch_unwind().await {
+            Ok(JobResult::NoAction) => {},
+            Ok(JobResult::Complete {variables}) => {
+                println!("complete job");
+                let complete_job = CompleteJob { job_key, variables };
+                client.complete_job(complete_job).await.unwrap();
+            },
+            Ok(JobResult::Fail {..}) => {
+                client.fail_job(job_key, retries - 1).await.unwrap();
+            }
+            Err(_) => {
+                match panic_option {
+                    PanicOption::DoNothingOnPanic => {
+                    },
+                    PanicOption::FailJobOnPanic => {
+                    }
+                }
+            },
+        };
     }
 }
