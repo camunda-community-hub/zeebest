@@ -26,7 +26,7 @@ jobs:
           key: v1-nightly-cargo-cache-{{ arch }}-{{ checksum "Cargo.lock" }}
       - run:
           name: test
-          command: cargo test
+          command: cargo test --features worker
   stable:
     docker:
       - image: rust:1

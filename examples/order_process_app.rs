@@ -230,8 +230,6 @@ async fn main() {
                 }.boxed()
             };
 
-
-            println!("processing jobs");
             WorkerBuilder::new_with_interval_and_client(Interval::new(Duration::from_secs(5)), Arc::new(client))
                 .add_job_handler("initiate-payment", initial_payment_config, initial_payment_handler)
                 .into_future().await;
