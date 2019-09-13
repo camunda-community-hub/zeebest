@@ -126,7 +126,6 @@ impl Client {
             .activate_jobs(Default::default(), jobs_config.into())
             .drop_metadata()
             .compat()
-            .inspect(|e| println!("{:?}", e))
             .map_err(|e| Error::ActivateJobError(e))
             .map_ok(|ajr| ActivatedJobs::new(ajr))
     }

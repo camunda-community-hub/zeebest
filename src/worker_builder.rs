@@ -37,7 +37,6 @@ impl Job {
                                 match AssertUnwindSafe((self.job_handler)(activated_job)).catch_unwind().await {
                                     Ok(JobResult::NoAction) => {},
                                     Ok(JobResult::Complete {variables}) => {
-                                        println!("complete job");
                                         let complete_job = CompleteJob { job_key, variables };
                                         self.client.complete_job(complete_job).await.unwrap();
                                     },

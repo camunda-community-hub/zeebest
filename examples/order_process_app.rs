@@ -62,7 +62,6 @@ async fn main() {
     let client = Client::new("127.0.0.1", 26500).expect("Could not connect to broker.");
 
     let opt = Opt::from_args();
-//    let opt = Opt::ProcessJobs;
 
     match opt {
         Opt::DeployWorkflow => {
@@ -108,7 +107,6 @@ async fn main() {
             let initial_payment_handler = move |_| {
                 let order_id_counter = order_id_counter.clone();
                 async move {
-                    println!("doing work");
                     // increment the order id counter
                     // this would normally be a key in a database or something
                     let order_id = order_id_counter.inc();
