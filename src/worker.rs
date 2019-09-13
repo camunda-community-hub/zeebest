@@ -30,8 +30,8 @@ pub struct WorkerConfig {
     pub job_type: String,
     /// a job returned after this call will not be activated by another call until the timeout has been reached
     pub timeout: i64,
-    /// the maximum jobs to activate by this request
-    pub max_jobs_to_activate: i32,
+    /// the maximum concurrent number of jobs
+    pub max_concurrent_jobs: i32,
     /// panic handling option
     pub panic_option: PanicOption,
 }
@@ -42,7 +42,7 @@ impl WorkerConfig {
             worker_name: worker,
             job_type,
             timeout,
-            max_jobs_to_activate,
+            max_concurrent_jobs: max_jobs_to_activate,
             panic_option,
         }
     }

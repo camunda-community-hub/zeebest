@@ -8,21 +8,24 @@ use std::sync::atomic::{AtomicUsize, Ordering};
 
 type JobHandlerFn = Box<dyn Fn(ActivatedJob) -> Pin<Box<dyn Future<Output = JobResult> + Send>> + Send + Sync>;
 
-struct Job {
+pub struct JobInternal {
     job_handler: JobHandlerFn,
     job_count: AtomicUsize,
-    max_job_count: usize,
+    max_concurrent_jobs: usize,
     client: Client,
-    activate_jobs: ActivateJobs,
+    worker_name: String,
+    job_type: String,
+    timeout: i64,
     panic_option: PanicOption,
 }
 
-impl Job {
-    async fn activate_and_process_jobs(self: Arc<Self>) {
+impl JobInternal {
+    pub async fn activate_and_process_jobs(self: Arc<Self>) {
         // TODO: insert back appropriate bounds checks and assert on invariants
         let current_job_count: usize = self.job_count.load(Ordering::SeqCst);
-        let mut activate_jobs = self.activate_jobs.clone();
-        activate_jobs.max_jobs_to_activate = (self.max_job_count - current_job_count) as _;
+        let max_jobs_to_activate = self.max_concurrent_jobs - current_job_count;
+        let mut activate_jobs = ActivateJobs::new(self.worker_name.clone(), self.job_type.clone(), self.timeout, 0);
+        activate_jobs.max_jobs_to_activate = (self.max_concurrent_jobs - current_job_count) as _;
         let mut activate_jobs_stream = self.client.activate_jobs(activate_jobs);
         loop {
             match activate_jobs_stream.next().await {
@@ -70,6 +73,52 @@ impl Job {
     }
 }
 
+#[derive(Clone)]
+pub struct Job {
+    job_internal: Arc<JobInternal>,
+//    job_handler: JobHandlerFn,
+//    job_count: AtomicUsize,
+//    max_concurrent_jobs: usize,
+//    client: Client,
+//    worker_name: String,
+//    job_type: String,
+//    timeout: i64,
+//    panic_option: PanicOption,
+}
+
+impl Job {
+    pub fn new<F>(job_handler: F, client: Client, worker_config: WorkerConfig) -> Self
+    where F: Fn(ActivatedJob) -> Pin<Box<dyn Future<Output = JobResult> + Send>> + Send + Sync + 'static,
+    {
+        let job_internal = Arc::new(JobInternal {
+            job_handler: Box::new(job_handler),
+            job_count: AtomicUsize::new(0),
+            max_concurrent_jobs: worker_config.max_concurrent_jobs as _,
+            client,
+            worker_name: worker_config.worker_name,
+            job_type: worker_config.job_type,
+            timeout: worker_config.timeout,
+            panic_option: PanicOption::FailJobOnPanic
+        });
+
+        Job {
+            job_internal,
+//            job_handler: Box::new(job_handler),
+//            job_count: AtomicUsize::new(0),
+//            max_concurrent_jobs: worker_config.max_concurrent_jobs as _,
+//            client,
+//            worker_name: worker_config.worker_name,
+//            job_type: worker_config.job_type,
+//            timeout: worker_config.timeout,
+//            panic_option: PanicOption::FailJobOnPanic
+        }
+    }
+
+    pub async fn activate_and_process_jobs(self) {
+        self.job_internal.activate_and_process_jobs().await;
+    }
+}
+
 pub struct WorkerBuilder<S: Stream + Unpin> {
     interval: S,
     client: Client,
@@ -90,25 +139,27 @@ impl<S: Stream + Unpin> WorkerBuilder<S> {
         }
     }
 
-    pub async fn into_future(self) {
-        let client = self.client;
-        let jobs = self.handlers
-            .into_iter()
-            .map(|(_, (worker_config, job_handler))| {
-                Arc::new(Job {
-                    job_handler,
-                    job_count: AtomicUsize::new(0),
-                    max_job_count: worker_config.max_jobs_to_activate as _,
-                    client: client.clone(),
-                    activate_jobs: ActivateJobs::new(worker_config.worker_name, worker_config.job_type, worker_config.timeout, worker_config.max_jobs_to_activate),
-                    panic_option: worker_config.panic_option,
-                })
-            })
-            .collect::<Vec<Arc<Job>>>();
-        let mut interval = self.interval;
-        while let Some(_) = interval.next().await {
-            let it = jobs.iter().cloned().map(Job::activate_and_process_jobs);
-            futures::future::join_all(it).await;
-        };
-    }
+//    pub async fn into_future(self) {
+//        let client = self.client;
+//        let jobs: Vec<Arc<Job>> = self.handlers
+//            .into_iter()
+//            .map(|(_, (worker_config, job_handler))| {
+//                Arc::new(Job {
+//                    job_handler,
+//                    job_count: AtomicUsize::new(0),
+//                    max_concurrent_jobs: worker_config.max_concurrent_jobs as _,
+//                    client: client.clone(),
+//                    worker_name: worker_config.worker_name,
+//                    job_type: worker_config.job_type,
+//                    panic_option: worker_config.panic_option,
+//                    timeout: worker_config.timeout,
+//                })
+//            })
+//            .collect::<Vec<Arc<Job>>>();
+//        let mut interval = self.interval;
+//        while let Some(_) = interval.next().await {
+//            let it = jobs.iter().cloned().map(Job::activate_and_process_jobs);
+//            futures::future::join_all(it).await;
+//        };
+//    }
 }

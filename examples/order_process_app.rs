@@ -9,6 +9,7 @@ use structopt::StructOpt;
 use zeebest::{Client, PublishMessage, WorkflowInstance, WorkflowVersion, PanicOption, JobResult, WorkerConfig};
 use zeebest::worker_builder::WorkerBuilder;
 use runtime::time::Interval;
+use failure::_core::mem::zeroed;
 
 #[derive(StructOpt, Debug)]
 #[structopt(
@@ -136,11 +137,27 @@ async fn main() {
                 PanicOption::FailJobOnPanic,
             );
 
-            WorkerBuilder::new_with_interval_and_client(Interval::new(Duration::from_secs(5)), client)
-                .add_job_handler("initiate-payment", initial_payment_config, initial_payment_handler)
-                .add_job_handler("ship-without-insurance", ship_without_insurance_config, |_| async { JobResult::Complete { variables: None } }.boxed())
-                .add_job_handler("ship-with-insurance", ship_with_insurance_config, |_| async { JobResult::Complete { variables: None } }.boxed())
-                .into_future().await;
+            let initial_payment_job = zeebest::worker_builder::Job::new(initial_payment_handler,
+                                                        client.clone(),
+                                                        initial_payment_config);
+
+            let ship_with_insurance_job = zeebest::worker_builder::Job::new(|_| futures::future::ready(JobResult::Complete { variables: None }).boxed(),
+                                                                                     client.clone(),
+                                                   ship_with_insurance_config);
+
+            let mut interval = Interval::new(Duration::from_secs(4));
+            while let Some(_) = interval.next().await {
+                let s1 = initial_payment_job.clone().activate_and_process_jobs();
+                let s2 = ship_with_insurance_job.clone().activate_and_process_jobs();
+                futures::future::join(s1, s2).await;
+            }
+
+
+//            WorkerBuilder::new_with_interval_and_client(Interval::new(Duration::from_secs(5)), client)
+//                .add_job_handler("initiate-payment", initial_payment_config, initial_payment_handler)
+//                .add_job_handler("ship-without-insurance", ship_without_insurance_config, |_| async { JobResult::Complete { variables: None } }.boxed())
+//                .add_job_handler("ship-with-insurance", ship_with_insurance_config, |_| async { JobResult::Complete { variables: None } }.boxed())
+//                .into_future().await;
         }
     }
 }
