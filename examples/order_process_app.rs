@@ -24,7 +24,10 @@ enum Opt {
         name = "place-order",
         about = "Place a new order. This starts a workflow instance."
     )]
-    PlaceOrder,
+    PlaceOrder {
+        #[structopt(short = "c", long = "count")]
+        count: i32,
+    },
     #[structopt(
         name = "notify-payment-received",
         about = "Indicate that the order was processed and there is now a cost for the order."
@@ -58,8 +61,8 @@ struct Payment {
 async fn main() {
     let client = Client::new("127.0.0.1", 26500).expect("Could not connect to broker.");
 
-//    let opt = Opt::from_args();
-    let opt = Opt::ProcessJobs;
+    let opt = Opt::from_args();
+//    let opt = Opt::ProcessJobs;
 
     match opt {
         Opt::DeployWorkflow => {
@@ -69,12 +72,14 @@ async fn main() {
                     include_bytes!("../examples/order-process.bpmn").to_vec(),
                 ).await.unwrap();
         }
-        Opt::PlaceOrder => {
-            client
-                .create_workflow_instance(WorkflowInstance::workflow_instance_with_bpmn_process(
-                    "order-process",
-                    WorkflowVersion::Latest,
-                )).await.unwrap();
+        Opt::PlaceOrder { count } => {
+            for _ in 0..count {
+                client
+                    .create_workflow_instance(WorkflowInstance::workflow_instance_with_bpmn_process(
+                        "order-process",
+                        WorkflowVersion::Latest,
+                    )).await.unwrap();
+            }
         }
         Opt::NotifyPaymentReceived { order_id, cost } => {
             client
@@ -95,8 +100,8 @@ async fn main() {
             let initial_payment_config = WorkerConfig::new(
                 "rusty-worker".to_string(),
                 "initiate-payment".to_string(),
-                Duration::from_secs(3).as_millis() as _,
-                4,
+                Duration::from_secs(3).as_secs() as _,
+                1,
                 PanicOption::FailJobOnPanic,
             );
 
@@ -120,16 +125,16 @@ async fn main() {
             let ship_without_insurance_config = WorkerConfig::new(
                 "rusty-worker".to_string(),
                 "ship-without-insurance".to_string(),
-                Duration::from_secs(3).as_millis() as _,
-                4,
+                Duration::from_secs(3).as_secs() as _,
+                1,
                 PanicOption::FailJobOnPanic,
             );
 
             let ship_with_insurance_config = WorkerConfig::new(
                 "rusty-worker".to_string(),
                 "ship-with-insurance".to_string(),
-                Duration::from_secs(3).as_millis() as _,
-                4,
+                Duration::from_secs(3).as_secs() as _,
+                1,
                 PanicOption::FailJobOnPanic,
             );
 
