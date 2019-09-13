@@ -448,7 +448,7 @@ impl Into<gateway::CompleteJobRequest> for CompleteJob {
 }
 
 /// An object used to activate jobs on the broker.
-#[derive(Debug, PartialEq, Eq, Hash)]
+#[derive(Clone, Debug, PartialEq, Eq, Hash)]
 pub struct ActivateJobs {
     /// the name of the worker activating the jobs, mostly used for logging purposes
     pub worker: String,

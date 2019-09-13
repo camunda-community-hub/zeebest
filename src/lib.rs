@@ -13,13 +13,13 @@ mod client;
 mod gateway;
 mod gateway_grpc;
 
-#[cfg(feature = "worker")]
+//#[cfg(feature = "worker")]
 pub mod worker_builder;
 
-#[cfg(feature = "worker")]
+//#[cfg(feature = "worker")]
 mod worker;
 
 pub use client::*;
 
-#[cfg(feature = "worker")]
+//#[cfg(feature = "worker")]
 pub use worker::*;
