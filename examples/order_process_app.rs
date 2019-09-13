@@ -3,13 +3,13 @@ extern crate serde_derive;
 
 use atomic_counter::{AtomicCounter, RelaxedCounter};
 use futures::prelude::*;
+use runtime::time::Interval;
 use std::sync::Arc;
 use std::time::Duration;
 use structopt::StructOpt;
-use zeebest::{Client, PublishMessage, WorkflowInstance, WorkflowVersion, PanicOption, JobResult, WorkerConfig};
-use zeebest::worker_builder::WorkerBuilder;
-use runtime::time::Interval;
-use failure::_core::mem::zeroed;
+use zeebest::{
+    Client, JobResult, PanicOption, PublishMessage, WorkerConfig, WorkflowInstance, WorkflowVersion,
+};
 
 #[derive(StructOpt, Debug)]
 #[structopt(
@@ -70,15 +70,21 @@ async fn main() {
                 .deploy_bpmn_workflow(
                     "order-process",
                     include_bytes!("../examples/order-process.bpmn").to_vec(),
-                ).await.unwrap();
+                )
+                .await
+                .unwrap();
         }
         Opt::PlaceOrder { count } => {
             for _ in 0..count {
                 client
-                    .create_workflow_instance(WorkflowInstance::workflow_instance_with_bpmn_process(
-                        "order-process",
-                        WorkflowVersion::Latest,
-                    )).await.unwrap();
+                    .create_workflow_instance(
+                        WorkflowInstance::workflow_instance_with_bpmn_process(
+                            "order-process",
+                            WorkflowVersion::Latest,
+                        ),
+                    )
+                    .await
+                    .unwrap();
             }
         }
         Opt::NotifyPaymentReceived { order_id, cost } => {
@@ -92,7 +98,9 @@ async fn main() {
                     )
                     .variables(&Payment { order_value: cost })
                     .unwrap(),
-                ).await.unwrap();
+                )
+                .await
+                .unwrap();
         }
         Opt::ProcessJobs => {
             let order_id_counter = Arc::new(RelaxedCounter::new(0));
@@ -114,11 +122,12 @@ async fn main() {
                     let variables = serde_json::to_string(&Order {
                         order_id: order_id as i32,
                     })
-                        .unwrap();
+                    .unwrap();
                     JobResult::Complete {
                         variables: Some(variables),
                     }
-                }.boxed()
+                }
+                    .boxed()
             };
 
             let ship_without_insurance_config = WorkerConfig::new(
@@ -137,13 +146,17 @@ async fn main() {
                 PanicOption::FailJobOnPanic,
             );
 
-            let initial_payment_job = zeebest::worker_builder::Job::new(initial_payment_handler,
-                                                        client.clone(),
-                                                        initial_payment_config);
+            let initial_payment_job = zeebest::worker_builder::Job::new(
+                initial_payment_handler,
+                client.clone(),
+                initial_payment_config,
+            );
 
-            let ship_with_insurance_job = zeebest::worker_builder::Job::new(|_| futures::future::ready(JobResult::Complete { variables: None }).boxed(),
-                                                                                     client.clone(),
-                                                   ship_with_insurance_config);
+            let ship_with_insurance_job = zeebest::worker_builder::Job::new(
+                |_| futures::future::ready(JobResult::Complete { variables: None }).boxed(),
+                client.clone(),
+                ship_with_insurance_config,
+            );
 
             let mut interval = Interval::new(Duration::from_secs(4));
             while let Some(_) = interval.next().await {
@@ -152,12 +165,11 @@ async fn main() {
                 futures::future::join(s1, s2).await;
             }
 
-
-//            WorkerBuilder::new_with_interval_and_client(Interval::new(Duration::from_secs(5)), client)
-//                .add_job_handler("initiate-payment", initial_payment_config, initial_payment_handler)
-//                .add_job_handler("ship-without-insurance", ship_without_insurance_config, |_| async { JobResult::Complete { variables: None } }.boxed())
-//                .add_job_handler("ship-with-insurance", ship_with_insurance_config, |_| async { JobResult::Complete { variables: None } }.boxed())
-//                .into_future().await;
+            //            WorkerBuilder::new_with_interval_and_client(Interval::new(Duration::from_secs(5)), client)
+            //                .add_job_handler("initiate-payment", initial_payment_config, initial_payment_handler)
+            //                .add_job_handler("ship-without-insurance", ship_without_insurance_config, |_| async { JobResult::Complete { variables: None } }.boxed())
+            //                .add_job_handler("ship-with-insurance", ship_with_insurance_config, |_| async { JobResult::Complete { variables: None } }.boxed())
+            //                .into_future().await;
         }
     }
 }

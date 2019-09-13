@@ -1,7 +1,7 @@
 #[macro_use]
 extern crate serde_derive;
-use zeebest::{Client, PublishMessage};
 use futures::executor::block_on;
+use zeebest::{Client, PublishMessage};
 
 #[derive(Serialize)]
 struct Payment {

@@ -1,14 +1,14 @@
 use crate::gateway;
 use crate::gateway_grpc::*;
+use futures::compat::{Future01CompatExt, Stream01CompatExt};
 use futures::future::{Future, TryFutureExt};
 use futures::stream::{Stream, StreamExt, TryStreamExt};
-use futures::compat::{Future01CompatExt, Stream01CompatExt};
 use grpc::ClientStubExt;
 use std::sync::Arc;
 
 //use crate::worker::{JobResult, JobWorker, PanicOption};
+use crate::gateway::TopologyResponse;
 use serde::Serialize;
-use crate::gateway::{TopologyResponse};
 
 #[derive(Debug, Fail)]
 pub enum Error {
@@ -66,9 +66,7 @@ impl Client {
         GatewayClient::new_plain(host, port, Default::default())
             .map_err(|e| Error::GatewayError(e))
             .map(Arc::new)
-            .map(|gateway_client| Client {
-                gateway_client,
-            })
+            .map(|gateway_client| Client { gateway_client })
     }
 
     /// Get the topology. The returned struct is similar to what is printed when running `zbctl status`.
@@ -184,7 +182,11 @@ pub struct Topology {
 impl Topology {
     pub fn new(topology_response: TopologyResponse) -> Topology {
         Self {
-            brokers: topology_response.brokers.into_iter().map(From::from).collect(),
+            brokers: topology_response
+                .brokers
+                .into_iter()
+                .map(From::from)
+                .collect(),
         }
     }
 }
@@ -260,7 +262,11 @@ impl DeployedWorkflows {
     pub fn new(deploy_workflow_response: gateway::DeployWorkflowResponse) -> DeployedWorkflows {
         Self {
             key: deploy_workflow_response.key,
-            workflows: deploy_workflow_response.workflows.into_iter().map(From::from).collect(),
+            workflows: deploy_workflow_response
+                .workflows
+                .into_iter()
+                .map(From::from)
+                .collect(),
         }
     }
 }

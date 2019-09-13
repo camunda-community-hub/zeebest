@@ -37,7 +37,13 @@ pub struct WorkerConfig {
 }
 
 impl WorkerConfig {
-    pub fn new(worker: String, job_type: String, timeout: i64, max_jobs_to_activate: i32, panic_option: PanicOption) -> Self {
+    pub fn new(
+        worker: String,
+        job_type: String,
+        timeout: i64,
+        max_jobs_to_activate: i32,
+        panic_option: PanicOption,
+    ) -> Self {
         Self {
             worker_name: worker,
             job_type,
