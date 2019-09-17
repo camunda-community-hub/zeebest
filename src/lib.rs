@@ -9,15 +9,9 @@
 #[macro_use]
 extern crate failure;
 
-#[macro_use]
-extern crate futures;
-
 mod client;
 mod gateway;
 mod gateway_grpc;
-
-//#[cfg(feature = "worker")]
-pub mod worker_builder;
 
 //#[cfg(feature = "worker")]
 mod worker;

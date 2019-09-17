@@ -2,7 +2,7 @@ use crate::gateway;
 use crate::gateway_grpc::*;
 use futures::compat::{Future01CompatExt, Stream01CompatExt};
 use futures::future::{Future, TryFutureExt};
-use futures::stream::{Stream, StreamExt, TryStreamExt};
+use futures::stream::{Stream, TryStreamExt};
 use grpc::ClientStubExt;
 use std::sync::Arc;
 

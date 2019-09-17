@@ -8,9 +8,7 @@ use runtime::time::Interval;
 use std::sync::Arc;
 use std::time::Duration;
 use structopt::StructOpt;
-use zeebest::{
-    Client, JobResult, PanicOption, PublishMessage, WorkflowInstance, WorkflowVersion,
-};
+use zeebest::{Client, JobResult, PanicOption, PublishMessage, WorkflowInstance, WorkflowVersion};
 
 #[derive(StructOpt, Debug)]
 #[structopt(
@@ -123,7 +121,7 @@ async fn main() {
                     .boxed()
             };
 
-            let initiate_payment_job = zeebest::worker_builder::JobWorker::new(
+            let initiate_payment_job = zeebest::JobWorker::new(
                 "rusty-worker".to_string(),
                 "initiate-payment".to_string(),
                 Duration::from_secs(3).as_secs() as _,
@@ -133,7 +131,7 @@ async fn main() {
                 initial_payment_handler,
             );
 
-            let ship_without_insurance_job = zeebest::worker_builder::JobWorker::new(
+            let ship_without_insurance_job = zeebest::JobWorker::new(
                 "rusty-worker".to_string(),
                 "ship-without-insurance".to_string(),
                 Duration::from_secs(3).as_secs() as _,
@@ -143,7 +141,7 @@ async fn main() {
                 |_| futures::future::ready(JobResult::Complete { variables: None }).boxed(),
             );
 
-            let ship_with_insurance_job = zeebest::worker_builder::JobWorker::new(
+            let ship_with_insurance_job = zeebest::JobWorker::new(
                 "rusty-worker".to_string(),
                 "ship-with-insurance".to_string(),
                 Duration::from_secs(3).as_secs() as _,
@@ -157,7 +155,9 @@ async fn main() {
             while let Some(_) = interval.next().await {
                 let s1 = initiate_payment_job.clone().activate_and_process_jobs();
                 let s2 = ship_with_insurance_job.clone().activate_and_process_jobs();
-                let s3 = ship_without_insurance_job.clone().activate_and_process_jobs();
+                let s3 = ship_without_insurance_job
+                    .clone()
+                    .activate_and_process_jobs();
                 futures::future::join3(s1, s2, s3).await;
             }
         }
