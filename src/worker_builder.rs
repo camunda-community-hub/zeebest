@@ -6,11 +6,123 @@ use futures::{Future, FutureExt, Stream, StreamExt};
 use std::collections::HashMap;
 use std::panic::AssertUnwindSafe;
 use std::pin::Pin;
-use std::sync::atomic::{AtomicUsize, Ordering};
+use std::sync::atomic::{AtomicUsize, AtomicI32, Ordering};
 use std::sync::Arc;
 
+use tower::ServiceBuilder;
+/*
+
+#[derive(zeebest)]
+#[zeebest(
+    name = "rusty-worker",
+    server = "127.0.0.1",
+    port = 26500,
+    )]
+struct Worker {
+#[zeebest(
+        job_type = "",
+        timeout = Duration::from_secs(2),
+
+        about = "Deploy the workflow on the broker. You probably only need to do this once."
+    )]
+}
+
+*/
+
+pub struct ConcurrencyConfigBuilder {
+    job_count: Option<Arc<AtomicI32>>,
+    max_concurrent_jobs: Option<Arc<i32>>,
+}
+
+#[derive(Default)]
+pub struct NewJobBuilder {
+    job_handler: Option<JobHandler>,
+    concurrent_config_builder: Option<ConcurrencyConfigBuilder>,
+    client: Option<Client>,
+    job_type: Option<String>,
+    timeout: Option<i64>,
+    panic_option: Option<PanicOption>,
+}
+
+impl NewJobBuilder {
+    pub fn job_handler(&mut self, job_handler: JobHandler) { self.job_handler = Some(job_handler) }
+    pub fn concurrency(&mut self, concurrency_config: ConcurrencyConfigBuilder) { self.concurrent_config_builder = Some(concurrency_config) }
+    pub fn client(&mut self, client: Client) { self.client = Some(client) }
+    pub fn job_type(&mut self, job_type: String) { self.job_type = Some(job_type) }
+    pub fn timeout(&mut self, timeout: i64) { self.timeout = Some(timeout) }
+    pub fn panic_option(&mut self, panic_option: PanicOption) { self.panic_option = Some(panic_option) }
+
+    pub fn build(self) -> JobWorker {
+//        Job::new()
+        unimplemented!()
+    }
+}
+
+pub struct NewJobWorkerBuilder {
+    job_builders: Vec<NewJobBuilder>,
+}
+
+impl NewJobWorkerBuilder {
+    pub fn job(&mut self, job: NewJobBuilder) {
+        self.job_builders.push(job);
+    }
+
+    pub fn build(self) {
+        for jb in self.job_builders {
+            jb.build();
+        }
+    }
+}
+
+fn build_the_world() {
+    let new_job_worker_builder = NewJobWorkerBuilder {
+        job_builders: vec![
+            NewJobBuilder::default(),
+        ],
+    };
+}
+
 type JobHandlerFn =
-    Box<dyn Fn(ActivatedJob) -> Pin<Box<dyn Future<Output = JobResult> + Send>> + Send + Sync>;
+Box<dyn Fn(ActivatedJob) -> Pin<Box<dyn Future<Output = JobResult> + Send>> + Send + Sync>;
+
+pub struct JobHandler {
+    job_handler_fn: JobHandlerFn,
+}
+
+impl JobHandler {
+    pub fn completed() -> Self {
+        JobHandler {
+            job_handler_fn: Box::new(|_| async { JobResult::Complete { variables: None } }.boxed()),
+        }
+    }
+    pub fn ready<F>(job_handler: F, client: Client, worker_config: WorkerConfig) -> Self
+    where
+    F: Fn(ActivatedJob) -> JobResult + Sync + Send + 'static,
+    {
+        let fn1 = move |aj: ActivatedJob| {
+            async {
+                JobResult::Complete { variables: None }
+            }.boxed()
+        };
+
+        JobHandler {
+            job_handler_fn: Box::new(fn1),
+        }
+
+
+//        let jb = |aj| {
+//            let jh = jh.clone();
+//            async {
+//                let job_result :JobResult = (jh.clone())(aj);
+//                job_result
+//            }.boxed()
+//        };
+//
+//        JobHandler {
+//            job_handler_fn: Box::new(jb)
+//        }
+    }
+}
 
 pub struct JobInternal {
     job_handler: JobHandlerFn,
@@ -81,20 +193,19 @@ impl JobInternal {
 }
 
 #[derive(Clone)]
-pub struct Job {
+pub struct JobWorker {
     job_internal: Arc<JobInternal>,
-    //    job_handler: JobHandlerFn,
-    //    job_count: AtomicUsize,
-    //    max_concurrent_jobs: usize,
-    //    client: Client,
-    //    worker_name: String,
-    //    job_type: String,
-    //    timeout: i64,
-    //    panic_option: PanicOption,
 }
 
-impl Job {
-    pub fn new<F>(job_handler: F, client: Client, worker_config: WorkerConfig) -> Self
+impl JobWorker {
+    pub fn new<F>(
+        worker: String,
+        job_type: String,
+        timeout: i64,
+        max_amount: u16,
+        panic_option: PanicOption,
+        client: Client,
+        job_handler: F,)-> Self
     where
         F: Fn(ActivatedJob) -> Pin<Box<dyn Future<Output = JobResult> + Send>>
             + Send
@@ -104,24 +215,16 @@ impl Job {
         let job_internal = Arc::new(JobInternal {
             job_handler: Box::new(job_handler),
             job_count: AtomicUsize::new(0),
-            max_concurrent_jobs: worker_config.max_concurrent_jobs as _,
+            max_concurrent_jobs: max_amount as _,
             client,
-            worker_name: worker_config.worker_name,
-            job_type: worker_config.job_type,
-            timeout: worker_config.timeout,
-            panic_option: PanicOption::FailJobOnPanic,
+            worker_name: worker,
+            job_type,
+            timeout,
+            panic_option,
         });
 
-        Job {
+        JobWorker {
             job_internal,
-            //            job_handler: Box::new(job_handler),
-            //            job_count: AtomicUsize::new(0),
-            //            max_concurrent_jobs: worker_config.max_concurrent_jobs as _,
-            //            client,
-            //            worker_name: worker_config.worker_name,
-            //            job_type: worker_config.job_type,
-            //            timeout: worker_config.timeout,
-            //            panic_option: PanicOption::FailJobOnPanic
         }
     }
 

@@ -3,12 +3,13 @@ extern crate serde_derive;
 
 use atomic_counter::{AtomicCounter, RelaxedCounter};
 use futures::prelude::*;
+
 use runtime::time::Interval;
 use std::sync::Arc;
 use std::time::Duration;
 use structopt::StructOpt;
 use zeebest::{
-    Client, JobResult, PanicOption, PublishMessage, WorkerConfig, WorkflowInstance, WorkflowVersion,
+    Client, JobResult, PanicOption, PublishMessage, WorkflowInstance, WorkflowVersion,
 };
 
 #[derive(StructOpt, Debug)]
@@ -105,14 +106,6 @@ async fn main() {
         Opt::ProcessJobs => {
             let order_id_counter = Arc::new(RelaxedCounter::new(0));
 
-            let initial_payment_config = WorkerConfig::new(
-                "rusty-worker".to_string(),
-                "initiate-payment".to_string(),
-                Duration::from_secs(3).as_secs() as _,
-                1,
-                PanicOption::FailJobOnPanic,
-            );
-
             let initial_payment_handler = move |_| {
                 let order_id_counter = order_id_counter.clone();
                 async move {
@@ -130,46 +123,43 @@ async fn main() {
                     .boxed()
             };
 
-            let ship_without_insurance_config = WorkerConfig::new(
+            let initiate_payment_job = zeebest::worker_builder::JobWorker::new(
+                "rusty-worker".to_string(),
+                "initiate-payment".to_string(),
+                Duration::from_secs(3).as_secs() as _,
+                1,
+                PanicOption::FailJobOnPanic,
+                client.clone(),
+                initial_payment_handler,
+            );
+
+            let ship_without_insurance_job = zeebest::worker_builder::JobWorker::new(
                 "rusty-worker".to_string(),
                 "ship-without-insurance".to_string(),
                 Duration::from_secs(3).as_secs() as _,
                 1,
                 PanicOption::FailJobOnPanic,
+                client.clone(),
+                |_| futures::future::ready(JobResult::Complete { variables: None }).boxed(),
             );
 
-            let ship_with_insurance_config = WorkerConfig::new(
+            let ship_with_insurance_job = zeebest::worker_builder::JobWorker::new(
                 "rusty-worker".to_string(),
                 "ship-with-insurance".to_string(),
                 Duration::from_secs(3).as_secs() as _,
                 1,
                 PanicOption::FailJobOnPanic,
-            );
-
-            let initial_payment_job = zeebest::worker_builder::Job::new(
-                initial_payment_handler,
                 client.clone(),
-                initial_payment_config,
-            );
-
-            let ship_with_insurance_job = zeebest::worker_builder::Job::new(
                 |_| futures::future::ready(JobResult::Complete { variables: None }).boxed(),
-                client.clone(),
-                ship_with_insurance_config,
             );
 
             let mut interval = Interval::new(Duration::from_secs(4));
             while let Some(_) = interval.next().await {
-                let s1 = initial_payment_job.clone().activate_and_process_jobs();
+                let s1 = initiate_payment_job.clone().activate_and_process_jobs();
                 let s2 = ship_with_insurance_job.clone().activate_and_process_jobs();
-                futures::future::join(s1, s2).await;
+                let s3 = ship_without_insurance_job.clone().activate_and_process_jobs();
+                futures::future::join3(s1, s2, s3).await;
             }
-
-            //            WorkerBuilder::new_with_interval_and_client(Interval::new(Duration::from_secs(5)), client)
-            //                .add_job_handler("initiate-payment", initial_payment_config, initial_payment_handler)
-            //                .add_job_handler("ship-without-insurance", ship_without_insurance_config, |_| async { JobResult::Complete { variables: None } }.boxed())
-            //                .add_job_handler("ship-with-insurance", ship_with_insurance_config, |_| async { JobResult::Complete { variables: None } }.boxed())
-            //                .into_future().await;
         }
     }
 }

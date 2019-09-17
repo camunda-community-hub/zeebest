@@ -1,3 +1,6 @@
+use futures::Future;
+use futures::future::err;
+
 //use crate::gateway_grpc;
 //use crate::Error;
 //use crate::{gateway, ActivatedJob};
@@ -20,6 +23,16 @@ pub enum JobResult {
     Complete { variables: Option<String> },
     Fail { error_message: Option<String> },
     NoAction,
+}
+
+impl JobResult {
+    pub fn into_result(self) -> Result<Option<String>, Option<String>> {
+        match self {
+            JobResult::Complete { variables } => Ok(variables),
+            JobResult::Fail { error_message} => Err(error_message),
+            JobResult::NoAction => Err(None),
+        }
+    }
 }
 
 #[derive(Clone, Debug, PartialEq, Eq, Hash)]
