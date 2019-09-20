@@ -1,5 +1,5 @@
-use crate::{ActivateJobs, ActivatedJob, ActivatedJobs, Client, CompleteJob};
-use futures::{Future, FutureExt, StreamExt};
+use crate::{ActivateJobs, ActivatedJob, ActivatedJobs, Client, CompleteJob, Error};
+use futures::{Future, FutureExt, StreamExt, Stream, TryStreamExt};
 use std::panic::AssertUnwindSafe;
 use std::pin::Pin;
 use std::sync::atomic::{AtomicUsize, Ordering};
@@ -45,7 +45,7 @@ pub struct JobInternal {
 }
 
 impl JobInternal {
-    pub async fn activate_and_process_jobs(self: Arc<Self>) {
+    pub fn activate_and_process_jobs(self: Arc<Self>) -> futures::stream::BoxStream<'static, Result<(JobResult, ActivatedJob), Error>> {
         let current_job_count: usize = self.job_count.load(Ordering::SeqCst);
         // assert on an unreachable edge case
         assert!(
@@ -59,48 +59,37 @@ impl JobInternal {
             0,
         );
         activate_jobs.max_jobs_to_activate = (self.max_concurrent_jobs - current_job_count) as _;
+
+
         let mut activate_jobs_stream = self.client.activate_jobs(activate_jobs);
-        loop {
-            match activate_jobs_stream.next().await {
-                Some(Ok(ActivatedJobs { activated_jobs })) => {
-                    let it = activated_jobs.into_iter().map(|activated_job| {
-                        async {
-                            self.job_count.fetch_add(1, Ordering::SeqCst);
-                            let job_key: i64 = activated_job.key;
-                            let retries = activated_job.retries;
-                            match AssertUnwindSafe((self.job_handler)(activated_job))
-                                .catch_unwind()
-                                .await
-                            {
-                                Ok(JobResult::NoAction) => {}
-                                Ok(JobResult::Complete { variables }) => {
-                                    let complete_job = CompleteJob { job_key, variables };
-                                    self.client.complete_job(complete_job).await.unwrap();
-                                }
-                                Ok(JobResult::Fail { .. }) => {
-                                    self.client.fail_job(job_key, retries - 1).await.unwrap();
-                                }
-                                Err(_) => match self.panic_option {
-                                    PanicOption::DoNothingOnPanic => {}
-                                    PanicOption::FailJobOnPanic => {
-                                        self.client.fail_job(job_key, retries - 1).await.unwrap();
-                                    }
-                                },
-                            };
-                            self.job_count.fetch_sub(1, Ordering::SeqCst);
-                        }
-                    });
-                    futures::future::join_all(it).await;
-                }
-                Some(Err(e)) => {
-                    println!("there was a problem activating jobs, {:?}", e);
-                    break;
-                }
-                None => {
-                    break;
-                }
+
+        let (tx, rx) = futures::channel::mpsc::unbounded();
+
+        activate_jobs_stream.for_each_concurrent(None, |result| {
+            match result {
+                Err(e) => {
+                    panic!("gsahh")
+                },
+                Ok(ActivatedJobs { activated_jobs }) => {
+                    futures::stream::iter(activated_jobs).for_each_concurrent(None, |aj| {
+                        let f = AssertUnwindSafe(futures::future::lazy(|c| {
+                            let ji = self.clone();
+                            let tx = tx.clone();
+                            let result = (ji.job_handler)(aj);
+                        })).catch_unwind().then(|result| match result {
+                            Err(e) => panic!("djflkdj"),
+                            Ok(result) => {
+                                futures::future::ready(result)
+                            },
+                        })
+                        ;
+                        futures::future::ready(())
+                    })
+                },
             }
-        }
+        });
+
+        rx.boxed()
     }
 }
 
@@ -148,8 +137,8 @@ impl JobWorker {
         JobWorker { job_internal }
     }
 
-    pub async fn activate_and_process_jobs(self) {
-        self.job_internal.activate_and_process_jobs().await;
+    pub async fn activate_and_process_jobs(self) -> futures::stream::BoxStream<'static, Result<(JobResult, ActivatedJob), Error>> {
+        self.job_internal.activate_and_process_jobs()
     }
 }
 

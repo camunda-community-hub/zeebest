@@ -506,7 +506,7 @@ impl ActivatedJobs {
 }
 
 /// Describes an activate zeebe job. Use this to do work and respond with completion or failure.
-#[derive(Debug)]
+#[derive(Clone, Debug)]
 pub struct ActivatedJob {
     /// the key, a unique identifier for the job
     pub key: i64,
