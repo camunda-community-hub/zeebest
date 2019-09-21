@@ -1,12 +1,15 @@
-use crate::{ActivateJobs, ActivatedJob, ActivatedJobs, Client, CompleteJob};
-use futures::{Future, FutureExt, StreamExt, TryFutureExt};
+use crate::{ActivateJobs, ActivatedJob, ActivatedJobs, Client};
+use futures::{Future, FutureExt, StreamExt};
 use std::pin::Pin;
 use std::sync::atomic::{AtomicUsize, Ordering};
 use std::sync::Arc;
 
-pub mod job_handler;
+mod job_handler;
+mod job_client;
 
 pub use job_handler::JobHandler;
+pub use job_client::JobClient;
+pub use job_client::Completer;
 
 /// An option that describes what the job worker should do if if the job handler panics.
 #[derive(Clone, Copy, Debug, PartialEq, Eq, Hash)]
@@ -32,37 +35,6 @@ impl JobResult {
         }
     }
 }
-
-pub struct JobClient {
-    client: Client,
-}
-
-impl JobClient {
-    pub fn new(client: Client) -> Self {
-        Self { client }
-    }
-
-    pub fn report_status(&self, activated_job: ActivatedJob, job_result: JobResult) -> Pin<Box<dyn Future<Output = Result<(), crate::Error>> + Send>> {
-        let key = activated_job.key;
-        let retries = activated_job.retries;
-        match job_result {
-            JobResult::NoAction => {
-                futures::future::ok(()).boxed()
-            },
-            JobResult::Fail { error_message } => {
-                match error_message {
-                    Some(msg) => self.client.fail_job(key, retries, msg).boxed(),
-                    None => self.client.fail_job(key, retries, "".to_string()).boxed(),
-                }
-            },
-            JobResult::Complete { variables } => {
-                let complete_job = CompleteJob::new(key, variables);
-                self.client.complete_job(complete_job).boxed()
-            }
-        }
-    }
-}
-
 
 pub struct JobInternal {
     job_handler: JobHandler,
@@ -162,7 +134,7 @@ impl JobWorker {
             + 'static,
     {
         let job_internal = Arc::new(JobInternal {
-            job_client: JobClient::new(client.clone()),
+            job_client: JobClient::new(Completer::new(client.clone())),
             job_handler: JobHandler::new(Arc::new(job_handler)),
             job_count: AtomicUsize::new(0),
             max_concurrent_jobs: max_amount as _,

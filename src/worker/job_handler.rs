@@ -1,7 +1,7 @@
 use std::sync::Arc;
 use std::pin::Pin;
-use futures::{Future, FutureExt, TryFuture, TryFutureExt, TryStreamExt, StreamExt};
-use std::panic::{AssertUnwindSafe, catch_unwind};
+use futures::{Future, FutureExt};
+use std::panic::{AssertUnwindSafe};
 use std::panic;
 
 pub struct JobHandler {
