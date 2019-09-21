@@ -1,5 +1,5 @@
 use crate::{ActivateJobs, ActivatedJob, ActivatedJobs, Client, CompleteJob};
-use futures::{Future, FutureExt, StreamExt};
+use futures::{Future, FutureExt, StreamExt, TryFutureExt};
 use std::panic::AssertUnwindSafe;
 use std::pin::Pin;
 use std::sync::atomic::{AtomicUsize, Ordering};
@@ -30,11 +30,18 @@ impl JobResult {
     }
 }
 
-type JobHandlerFn =
-    Arc<dyn Fn(ActivatedJob) -> Pin<Box<dyn Future<Output = JobResult> + Send>> + Send + Sync>;
+struct JobHandler {
+    job_handler: Arc<dyn Fn(ActivatedJob) -> Pin<Box<dyn Future<Output = JobResult> + Send>> + Send + Sync>,
+}
+
+impl JobHandler {
+    pub fn process_job(&self, activated_job: ActivatedJob) -> impl Future<Output = Result<JobResult, ()>> {
+        AssertUnwindSafe((self.job_handler)(activated_job)).catch_unwind().map_err(|_| ())
+    }
+}
 
 pub struct JobInternal {
-    job_handler: JobHandlerFn,
+    job_handler: JobHandler,
     job_count: AtomicUsize,
     max_concurrent_jobs: usize,
     client: Client,
@@ -66,24 +73,28 @@ impl JobInternal {
         activate_jobs_stream.for_each_concurrent(None, move |result| {
             match result {
                 Err(_e) => {
-                    panic!("gsahh")
+                    futures::future::ready(()).boxed()
                 },
                 Ok(ActivatedJobs { activated_jobs }) => {
                     let slf = slf.clone();
+
+                    let job_count = activated_jobs.len();
+                    slf.job_count.fetch_add(job_count, Ordering::SeqCst);
+
                     futures::stream::iter(activated_jobs).for_each_concurrent(None, move |aj| {
                         let slf = slf.clone();
-                        AssertUnwindSafe((slf.job_handler)(aj.clone())).catch_unwind().then(move |result| {
-                            let aj = aj.clone();
+                        slf.job_handler.process_job(aj.clone()).then(move |result| {
+                            slf.job_count.fetch_sub(1, Ordering::SeqCst);
                             match result {
                                 Err(_) => {
-                                  match slf.panic_option {
-                                      PanicOption::FailJobOnPanic => {
-                                          slf.client.fail_job(aj.key, aj.retries, "panic".to_string()).then(|_| futures::future::ready(())).boxed()
-                                      },
-                                      PanicOption::DoNothingOnPanic => {
-                                          futures::future::ready(()).boxed()
-                                      },
-                                  }
+                                    match slf.panic_option {
+                                        PanicOption::FailJobOnPanic => {
+                                            slf.client.fail_job(aj.key, aj.retries, "worker panicked".to_string()).then(|_| futures::future::ready(())).boxed()
+                                        },
+                                        PanicOption::DoNothingOnPanic => {
+                                            futures::future::ready(()).boxed()
+                                        },
+                                    }
                                 },
                                 Ok(job_result) => {
                                     match job_result {
@@ -104,7 +115,7 @@ impl JobInternal {
                                 },
                             }
                         })
-                    })
+                    }).boxed()
                 },
             }
         }).boxed()
@@ -142,7 +153,7 @@ impl JobWorker {
             + 'static,
     {
         let job_internal = Arc::new(JobInternal {
-            job_handler: Arc::new(job_handler),
+            job_handler: JobHandler {job_handler: Arc::new(job_handler)},
             job_count: AtomicUsize::new(0),
             max_concurrent_jobs: max_amount as _,
             client,

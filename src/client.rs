@@ -57,7 +57,7 @@ impl Into<i32> for WorkflowVersion {
 /// The primary type for interacting with zeebe.
 #[derive(Clone)]
 pub struct Client {
-    pub(crate) gateway_client: Arc<GatewayClient>,
+    pub gateway_client: Arc<dyn Gateway + Send + Sync>,
 }
 
 impl Client {
