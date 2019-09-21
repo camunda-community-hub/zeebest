@@ -1,5 +1,5 @@
-use crate::{ActivateJobs, ActivatedJob, ActivatedJobs, Client, CompleteJob, Error};
-use futures::{Future, FutureExt, StreamExt, Stream, TryStreamExt};
+use crate::{ActivateJobs, ActivatedJob, ActivatedJobs, Client, CompleteJob};
+use futures::{Future, FutureExt, StreamExt};
 use std::panic::AssertUnwindSafe;
 use std::pin::Pin;
 use std::sync::atomic::{AtomicUsize, Ordering};
@@ -31,7 +31,7 @@ impl JobResult {
 }
 
 type JobHandlerFn =
-    Box<dyn Fn(ActivatedJob) -> Pin<Box<dyn Future<Output = JobResult> + Send>> + Send + Sync>;
+    Arc<dyn Fn(ActivatedJob) -> Pin<Box<dyn Future<Output = JobResult> + Send>> + Send + Sync>;
 
 pub struct JobInternal {
     job_handler: JobHandlerFn,
@@ -45,7 +45,7 @@ pub struct JobInternal {
 }
 
 impl JobInternal {
-    pub fn activate_and_process_jobs(self: Arc<Self>) -> futures::stream::BoxStream<'static, Result<(JobResult, ActivatedJob), Error>> {
+    pub fn activate_and_process_jobs(self: Arc<Self>) -> Pin<Box<dyn Future<Output = ()> + Send>> {
         let current_job_count: usize = self.job_count.load(Ordering::SeqCst);
         // assert on an unreachable edge case
         assert!(
@@ -60,36 +60,54 @@ impl JobInternal {
         );
         activate_jobs.max_jobs_to_activate = (self.max_concurrent_jobs - current_job_count) as _;
 
+        let activate_jobs_stream = self.client.activate_jobs(activate_jobs);
 
-        let mut activate_jobs_stream = self.client.activate_jobs(activate_jobs);
-
-        let (tx, rx) = futures::channel::mpsc::unbounded();
-
-        activate_jobs_stream.for_each_concurrent(None, |result| {
+        let slf = self.clone();
+        activate_jobs_stream.for_each_concurrent(None, move |result| {
             match result {
-                Err(e) => {
+                Err(_e) => {
                     panic!("gsahh")
                 },
                 Ok(ActivatedJobs { activated_jobs }) => {
-                    futures::stream::iter(activated_jobs).for_each_concurrent(None, |aj| {
-                        let f = AssertUnwindSafe(futures::future::lazy(|c| {
-                            let ji = self.clone();
-                            let tx = tx.clone();
-                            let result = (ji.job_handler)(aj);
-                        })).catch_unwind().then(|result| match result {
-                            Err(e) => panic!("djflkdj"),
-                            Ok(result) => {
-                                futures::future::ready(result)
-                            },
+                    let slf = slf.clone();
+                    futures::stream::iter(activated_jobs).for_each_concurrent(None, move |aj| {
+                        let slf = slf.clone();
+                        AssertUnwindSafe((slf.job_handler)(aj.clone())).catch_unwind().then(move |result| {
+                            let aj = aj.clone();
+                            match result {
+                                Err(_) => {
+                                  match slf.panic_option {
+                                      PanicOption::FailJobOnPanic => {
+                                          slf.client.fail_job(aj.key, aj.retries, "panic".to_string()).then(|_| futures::future::ready(())).boxed()
+                                      },
+                                      PanicOption::DoNothingOnPanic => {
+                                          futures::future::ready(()).boxed()
+                                      },
+                                  }
+                                },
+                                Ok(job_result) => {
+                                    match job_result {
+                                        JobResult::NoAction => {
+                                            futures::future::ready(()).boxed()
+                                        },
+                                        JobResult::Fail { error_message } => {
+                                            match error_message {
+                                                Some(msg) => slf.client.fail_job(aj.key, aj.retries, msg).then(|_| futures::future::ready(())).boxed(),
+                                                None => slf.client.fail_job(aj.key, aj.retries, "".to_string()).then(|_| futures::future::ready(())).boxed(),
+                                            }
+                                        },
+                                        JobResult::Complete { variables } => {
+                                            let complete_job = CompleteJob::new(aj.key, variables);
+                                            slf.client.complete_job(complete_job).then(|_| futures::future::ready(())).boxed()
+                                        }
+                                    }
+                                },
+                            }
                         })
-                        ;
-                        futures::future::ready(())
                     })
                 },
             }
-        });
-
-        rx.boxed()
+        }).boxed()
     }
 }
 
@@ -124,7 +142,7 @@ impl JobWorker {
             + 'static,
     {
         let job_internal = Arc::new(JobInternal {
-            job_handler: Box::new(job_handler),
+            job_handler: Arc::new(job_handler),
             job_count: AtomicUsize::new(0),
             max_concurrent_jobs: max_amount as _,
             client,
@@ -137,7 +155,7 @@ impl JobWorker {
         JobWorker { job_internal }
     }
 
-    pub async fn activate_and_process_jobs(self) -> futures::stream::BoxStream<'static, Result<(JobResult, ActivatedJob), Error>> {
+    pub async fn activate_and_process_jobs(self) -> Pin<Box<dyn Future<Output = ()> + Send>> {
         self.job_internal.activate_and_process_jobs()
     }
 }

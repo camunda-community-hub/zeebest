@@ -146,11 +146,13 @@ impl Client {
         &self,
         job_key: i64,
         retries: i32,
+        error_message: String,
     ) -> impl Future<Output = Result<(), Error>> + Send {
         let request_options = Default::default();
         let mut request = gateway::FailJobRequest::default();
         request.set_jobKey(job_key);
         request.set_retries(retries);
+        request.set_errorMessage(error_message);
         self.gateway_client
             .fail_job(request_options, request)
             .drop_metadata()
@@ -424,10 +426,10 @@ pub struct CompleteJob {
 }
 
 impl CompleteJob {
-    pub fn new(job_key: i64) -> Self {
+    pub fn new(job_key: i64, variables: Option<String>) -> Self {
         Self {
             job_key,
-            variables: None,
+            variables,
         }
     }
 
