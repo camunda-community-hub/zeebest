@@ -2,7 +2,6 @@
 extern crate serde_derive;
 
 use futures::executor::block_on;
-use futures::Future;
 use zeebest::{Client, WorkflowInstance, WorkflowVersion};
 
 #[derive(Serialize)]

@@ -91,7 +91,7 @@ mod test {
             futures::future::ok(()).boxed()
         }
 
-        fn fail(&self, key: i64, _retries: i32, error_message: Option<String>) -> Pin<Box<dyn Future<Output=Result<(), crate::Error>> + Send>> {
+        fn fail(&self, key: i64, _retries: i32, _error_message: Option<String>) -> Pin<Box<dyn Future<Output=Result<(), crate::Error>> + Send>> {
             let mut write = self.fail.write().unwrap();
             *write = Some(key);
             futures::future::ok(()).boxed()
@@ -112,7 +112,7 @@ mod test {
             variables: "".to_string()
         };
         let result = JobResult::Complete { variables: None };
-        futures::executor::block_on(job_client.report_status(activated_job, result));
+        let _ = futures::executor::block_on(job_client.report_status(activated_job, result)).unwrap();
         let completed = completer.completed.read().unwrap().clone();
         let failed = completer.fail.read().unwrap().clone();
         assert_eq!(completed, Some(100));
@@ -133,7 +133,7 @@ mod test {
             variables: "".to_string()
         };
         let result = JobResult::Fail { error_message: None };
-        futures::executor::block_on(job_client.report_status(activated_job, result));
+        let _ = futures::executor::block_on(job_client.report_status(activated_job, result)).unwrap();
         let completed = completer.completed.read().unwrap().clone();
         let failed = completer.fail.read().unwrap().clone();
         assert_eq!(completed, None);

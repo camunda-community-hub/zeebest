@@ -1,5 +1,4 @@
 use futures::executor::block_on;
-use futures::Future;
 use zeebest::Client;
 
 fn main() {
