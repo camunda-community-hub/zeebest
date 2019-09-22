@@ -1,7 +1,7 @@
 #[macro_use]
 extern crate serde_derive;
 
-use futures::Future;
+use futures::executor::block_on;
 use zeebest::{Client, WorkflowInstance, WorkflowVersion};
 
 #[derive(Serialize)]
@@ -22,10 +22,7 @@ fn main() {
     .variables(&place_order)
     .unwrap();
 
-    let result = client
-        .create_workflow_instance(workflow_instance)
-        .wait()
-        .unwrap();
+    let result = block_on(client.create_workflow_instance(workflow_instance));
 
     println!("create workflow result: {:?}", result);
 }
