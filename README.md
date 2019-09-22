@@ -17,9 +17,6 @@ its best to only request jobs from the broker up to the maximum amount. Each job
 Workers currently will only poll the gateway manually, so you will need to use another system to process jobs periodically. 
 `tokio::Interval` does a pretty good job of this.
 
-All work is put on to a thread-pool with the help of [`futures-cpupool` crate][futures_cpupool] so that the job handlers
-do not block the event loop.
-
 ```rust
 let mut client = Client::new("127.0.0.1", 26500).unwrap();
 
@@ -27,12 +24,13 @@ let handler = move |activated_job| {
     Ok(JobResult::Complete { variables: None })
 };
 
-let mut worker = client.worker(
-    "rusty-worker",
-    "payment-service",
-    10000, // timeout
+let mut worker = zeebest::JobWorker::new(
+    "rusty-worker".to_string(),
+    "payment-service".to_string(),
+    Duration::from_secs(10).as_secs() as _,
     2, // max number of concurrent jobs
     PanicOption::FailJobOnPanic,
+    client,
     handler,
 );
 
@@ -50,15 +48,10 @@ Futures must be executed on a futures runtime like `tokio` for anything to happe
 
 This crate does not have a good out-of-the-box runtime solution, so you may rely on `tokio` or your favorite `futures` runtime. 
 
-All of the commands may be run synchronously on the current thread with `Future::wait`. I am interested in adopting
-a node.js style API with sync and async methods. 
-
 ## Async
 
-This crate **does not support** the new async syntax. When the async stuff finds its way into stable rust, I would be 
-interested in upgrading the futures from 0.1 to 0.3 and supporting the async syntax. It will definitely help with readability. 
-
-Watch https://areweasyncyet.rs/ for updates.
+This crate now supports futures 0.3 (std::future). This crate does not use async-await syntax because it needs to build 
+in stable rust. But because everything is futures 0.3, zeebest can be used with async-await in nightly rust projects.
 
 ## Zeebe Versions
 
@@ -96,4 +89,3 @@ the completeness.
 [docker_compose]: https://github.com/zeebe-io/zeebe-docker-compose
 [java_client]: https://github.com/zeebe-io/zeebe/tree/develop/clients/java/src/main/java/io/zeebe/client
 [order_process]: examples/order_process_app.rs
-[futures_cpupool]: https://crates.io/crates/futures-cpupool
