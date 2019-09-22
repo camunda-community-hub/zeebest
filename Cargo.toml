@@ -25,7 +25,7 @@ protoc-rust-grpc = "0.6.1"
 atomic-counter = "1.0.1"
 serde_derive = "1.0.91"
 structopt = "0.2.16"
-#runtime = "0.3.0-alpha.7"
+tokio = "0.1"
 
 [features]
 default = []
