@@ -1,13 +1,13 @@
 use crate::gateway;
 use crate::gateway_grpc::*;
-use futures::{Future, IntoFuture, Stream};
+use futures::compat::{Future01CompatExt, Stream01CompatExt};
+use futures::future::{Future, TryFutureExt};
+use futures::stream::{Stream, TryStreamExt};
 use grpc::ClientStubExt;
 use std::sync::Arc;
 
-use crate::worker::{JobResult, JobWorker, PanicOption};
-use futures_cpupool::CpuPool;
+use crate::gateway::TopologyResponse;
 use serde::Serialize;
-use std::time::Duration;
 
 #[derive(Debug, Fail)]
 pub enum Error {
@@ -56,8 +56,7 @@ impl Into<i32> for WorkflowVersion {
 /// The primary type for interacting with zeebe.
 #[derive(Clone)]
 pub struct Client {
-    pub(crate) gateway_client: Arc<GatewayClient>,
-    thread_pool: Option<CpuPool>,
+    pub gateway_client: Arc<dyn Gateway + Send + Sync>,
 }
 
 impl Client {
@@ -66,18 +65,16 @@ impl Client {
         GatewayClient::new_plain(host, port, Default::default())
             .map_err(|e| Error::GatewayError(e))
             .map(Arc::new)
-            .map(|gateway_client| Client {
-                gateway_client,
-                thread_pool: None,
-            })
+            .map(|gateway_client| Client { gateway_client })
     }
 
     /// Get the topology. The returned struct is similar to what is printed when running `zbctl status`.
-    pub fn topology(&self) -> impl Future<Item = Topology, Error = Error> {
+    pub fn topology(&self) -> impl Future<Output = Result<Topology, Error>> {
         self.gateway_client
             .topology(Default::default(), Default::default())
             .drop_metadata()
-            .map(From::from)
+            .compat()
+            .map_ok(|tr| Topology::new(tr))
             .map_err(|e| Error::TopologyError(e))
     }
 
@@ -86,7 +83,7 @@ impl Client {
         &self,
         workflow_name: S,
         workflow_definition: Vec<u8>,
-    ) -> impl Future<Item = DeployedWorkflows, Error = Error> {
+    ) -> impl Future<Output = Result<DeployedWorkflows, Error>> {
         // construct request
         let mut workflow_request_object = gateway::WorkflowRequestObject::default();
         workflow_request_object.set_name(workflow_name.into());
@@ -99,44 +96,48 @@ impl Client {
         self.gateway_client
             .deploy_workflow(Default::default(), deploy_workflow_request)
             .drop_metadata()
+            .compat()
             .map_err(|e| Error::DeployWorkflowError(e))
-            .map(From::from)
+            .map_ok(|dwr| DeployedWorkflows::new(dwr))
     }
 
     /// create a workflow instance with a payload
     pub fn create_workflow_instance(
         &self,
         workflow_instance: WorkflowInstance,
-    ) -> impl Future<Item = CreatedWorkflowInstance, Error = Error> {
+    ) -> impl Future<Output = Result<CreatedWorkflowInstance, Error>> {
         self.gateway_client
             .create_workflow_instance(Default::default(), workflow_instance.into())
             .drop_metadata()
+            .compat()
             .map_err(|e| Error::CreateWorkflowInstanceError(e))
-            .map(From::from)
+            .map_ok(|cwr| CreatedWorkflowInstance::new(cwr))
     }
 
     /// activate jobs
     pub fn activate_jobs(
         &self,
         jobs_config: ActivateJobs,
-    ) -> impl Stream<Item = ActivatedJobs, Error = Error> + Send {
+    ) -> impl Stream<Item = Result<ActivatedJobs, Error>> + Send {
         self.gateway_client
             .activate_jobs(Default::default(), jobs_config.into())
             .drop_metadata()
+            .compat()
             .map_err(|e| Error::ActivateJobError(e))
-            .map(From::from)
+            .map_ok(|ajr| ActivatedJobs::new(ajr))
     }
 
     /// complete a job
     pub fn complete_job(
         &self,
         complete_job: CompleteJob,
-    ) -> impl Future<Item = (), Error = Error> + Send {
+    ) -> impl Future<Output = Result<(), Error>> + Send {
         self.gateway_client
             .complete_job(Default::default(), complete_job.into())
             .drop_metadata()
+            .compat()
             .map_err(|e| Error::CompleteJobError(e))
-            .map(|_| ())
+            .map_ok(|_| ())
     }
 
     /// fail a job
@@ -144,15 +145,18 @@ impl Client {
         &self,
         job_key: i64,
         retries: i32,
-    ) -> impl Future<Item = (), Error = Error> + Send {
+        error_message: String,
+    ) -> impl Future<Output = Result<(), Error>> + Send {
         let request_options = Default::default();
         let mut request = gateway::FailJobRequest::default();
         request.set_jobKey(job_key);
         request.set_retries(retries);
+        request.set_errorMessage(error_message);
         self.gateway_client
             .fail_job(request_options, request)
             .drop_metadata()
-            .map(|_| ())
+            .compat()
+            .map_ok(|_| ())
             .map_err(|e| Error::FailJobError(e))
     }
 
@@ -160,57 +164,32 @@ impl Client {
     pub fn publish_message(
         &self,
         publish_message: PublishMessage,
-    ) -> impl Future<Item = (), Error = Error> {
+    ) -> impl Future<Output = Result<(), Error>> {
         self.gateway_client
             .publish_message(Default::default(), publish_message.into())
             .drop_metadata()
+            .compat()
             .map_err(|e| Error::PublishMessageError(e))
-            .map(|_| ())
-    }
-
-    /// Create a worker. This will create a `JobWorker` that can activate and process jobs of a
-    /// specific type. The behavior of the job worker is configured with the `timeout`, `max_amount`,
-    /// and `panic_option`. The job handler must be `UnwindSafe` so panics can be captured. The timeout
-    /// may not exceed the maximum of i64 or else panic.
-    pub fn worker<H, F, S1, S2>(
-        &mut self,
-        worker: S1,
-        job_type: S2,
-        timeout: Duration,
-        max_amount: u16,
-        panic_option: PanicOption,
-        handler: H,
-    ) -> JobWorker<H, F>
-    where
-        H: Fn(ActivatedJob) -> F + Send + Sync,
-        F: IntoFuture<Item = JobResult, Error = String> + Send,
-        <F as IntoFuture>::Future: Send,
-        S1: Into<String>,
-        S2: Into<String>,
-    {
-        let thread_pool = self.thread_pool.get_or_insert(CpuPool::new_num_cpus());
-
-        let timeout = timeout.as_millis() as i64;
-
-        assert!(timeout >= 0, "timeout must be able to cast to i64 and must not exceed i64 maximum in milliseconds or be negative");
-
-        JobWorker::new(
-            worker.into(),
-            job_type.into(),
-            timeout,
-            max_amount,
-            panic_option,
-            self.gateway_client.clone(),
-            handler,
-            thread_pool.clone(),
-        )
+            .map_ok(|_| ())
     }
 }
 
-/// The toplogy of the zeebe cluster.
+/// The topology of the zeebe cluster.
 #[derive(Debug)]
 pub struct Topology {
     pub brokers: Vec<BrokerInfo>,
+}
+
+impl Topology {
+    pub fn new(topology_response: TopologyResponse) -> Topology {
+        Self {
+            brokers: topology_response
+                .brokers
+                .into_iter()
+                .map(From::from)
+                .collect(),
+        }
+    }
 }
 
 impl From<gateway::TopologyResponse> for Topology {
@@ -280,11 +259,15 @@ pub struct DeployedWorkflows {
     pub workflows: Vec<Workflow>,
 }
 
-impl From<gateway::DeployWorkflowResponse> for DeployedWorkflows {
-    fn from(dwr: gateway::DeployWorkflowResponse) -> Self {
+impl DeployedWorkflows {
+    pub fn new(deploy_workflow_response: gateway::DeployWorkflowResponse) -> DeployedWorkflows {
         Self {
-            key: dwr.key,
-            workflows: dwr.workflows.into_iter().map(From::from).collect(),
+            key: deploy_workflow_response.key,
+            workflows: deploy_workflow_response
+                .workflows
+                .into_iter()
+                .map(From::from)
+                .collect(),
         }
     }
 }
@@ -318,8 +301,8 @@ pub struct CreatedWorkflowInstance {
     workflow_instance_key: i64,
 }
 
-impl From<gateway::CreateWorkflowInstanceResponse> for CreatedWorkflowInstance {
-    fn from(cwir: gateway::CreateWorkflowInstanceResponse) -> Self {
+impl CreatedWorkflowInstance {
+    pub fn new(cwir: gateway::CreateWorkflowInstanceResponse) -> Self {
         Self {
             workflow_key: cwir.workflowKey,
             bpmn_process_id: cwir.bpmnProcessId,
@@ -442,11 +425,8 @@ pub struct CompleteJob {
 }
 
 impl CompleteJob {
-    pub fn new(job_key: i64) -> Self {
-        Self {
-            job_key,
-            variables: None,
-        }
+    pub fn new(job_key: i64, variables: Option<String>) -> Self {
+        Self { job_key, variables }
     }
 
     pub fn variables<S: Serialize>(mut self, variables: &S) -> Result<Self, Error> {
@@ -471,7 +451,7 @@ impl Into<gateway::CompleteJobRequest> for CompleteJob {
 }
 
 /// An object used to activate jobs on the broker.
-#[derive(Debug)]
+#[derive(Clone, Debug, PartialEq, Eq, Hash)]
 pub struct ActivateJobs {
     /// the name of the worker activating the jobs, mostly used for logging purposes
     pub worker: String,
@@ -513,18 +493,18 @@ impl Into<gateway::ActivateJobsRequest> for ActivateJobs {
 /// Batched up activated jobs. Each batch corresponds to the jobs in a zeebe partition.
 #[derive(Debug)]
 pub struct ActivatedJobs {
-    activated_jobs: Vec<ActivatedJob>,
+    pub activated_jobs: Vec<ActivatedJob>,
 }
 
-impl From<gateway::ActivateJobsResponse> for ActivatedJobs {
-    fn from(ajr: gateway::ActivateJobsResponse) -> Self {
+impl ActivatedJobs {
+    pub fn new(ajr: gateway::ActivateJobsResponse) -> Self {
         let activated_jobs: Vec<ActivatedJob> = ajr.jobs.into_iter().map(From::from).collect();
         ActivatedJobs { activated_jobs }
     }
 }
 
 /// Describes an activate zeebe job. Use this to do work and respond with completion or failure.
-#[derive(Debug)]
+#[derive(Clone, Debug)]
 pub struct ActivatedJob {
     /// the key, a unique identifier for the job
     pub key: i64,
