@@ -8,9 +8,14 @@
 
 #[macro_use]
 extern crate failure;
+#[macro_use]
+extern crate tonic;
 mod client;
-mod gateway;
-mod gateway_grpc;
 mod worker;
+
+pub mod gateway {
+    tonic::include_proto!("gateway_protocol");
+}
+
 pub use client::*;
 pub use worker::*;

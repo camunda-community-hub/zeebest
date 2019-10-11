@@ -1,13 +1,16 @@
-use crate::gateway;
-use crate::gateway_grpc::*;
 use futures::compat::{Future01CompatExt, Stream01CompatExt};
 use futures::future::{Future, TryFutureExt};
 use futures::stream::{Stream, TryStreamExt};
-use grpc::ClientStubExt;
 use std::sync::Arc;
 
-use crate::gateway::TopologyResponse;
+pub use crate::gateway;
+pub use crate::gateway::client::GatewayClient;
+
 use serde::Serialize;
+
+pub mod grpc {
+    type Error = Box<dyn std::error::Error + Sync + Send>;
+}
 
 #[derive(Debug, Fail)]
 pub enum Error {
@@ -55,14 +58,14 @@ impl Into<i32> for WorkflowVersion {
 
 /// The primary type for interacting with zeebe.
 #[derive(Clone)]
-pub struct Client {
-    pub gateway_client: Arc<dyn Gateway + Send + Sync>,
+pub struct Client<T> {
+    pub gateway_client: GatewayClient<T>,
 }
 
-impl Client {
+impl<T> Client<T> {
     /// Construct a new `Client` that connects to a broker with `host` and `port`.
     pub fn new(host: &str, port: u16) -> Result<Self, Error> {
-        GatewayClient::new_plain(host, port, Default::default())
+        GatewayClient::connect(host, port, Default::default())
             .map_err(|e| Error::GatewayError(e))
             .map(Arc::new)
             .map(|gateway_client| Client { gateway_client })
@@ -88,7 +91,7 @@ impl Client {
         let mut workflow_request_object = gateway::WorkflowRequestObject::default();
         workflow_request_object.set_name(workflow_name.into());
         workflow_request_object.set_definition(workflow_definition);
-        workflow_request_object.set_field_type(gateway::WorkflowRequestObject_ResourceType::BPMN);
+        workflow_request_object.set_field_type(gateway::workflow_request_object::Bpmn);
         let mut deploy_workflow_request = gateway::DeployWorkflowRequest::default();
         deploy_workflow_request
             .set_workflows(protobuf::RepeatedField::from(vec![workflow_request_object]));
@@ -243,11 +246,11 @@ pub enum BrokerRole {
     FOLLOWER = 1,
 }
 
-impl From<gateway::Partition_PartitionBrokerRole> for BrokerRole {
-    fn from(pbr: gateway::Partition_PartitionBrokerRole) -> Self {
+impl From<gateway::partition::PartitionBrokerRole> for BrokerRole {
+    fn from(pbr: gateway::partition::PartitionBrokerRole) -> Self {
         match pbr {
-            gateway::Partition_PartitionBrokerRole::FOLLOWER => BrokerRole::FOLLOWER,
-            gateway::Partition_PartitionBrokerRole::LEADER => BrokerRole::LEADER,
+            gateway::partition::PartitionBrokerRole::Follower => BrokerRole::FOLLOWER,
+            gateway::partition::PartitionBrokerRole::Leader => BrokerRole::LEADER,
         }
     }
 }
