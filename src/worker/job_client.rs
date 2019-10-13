@@ -87,99 +87,99 @@ impl JobClient {
     }
 }
 
-#[cfg(test)]
-mod test {
-    use crate::worker::job_client::JobStatusReporter;
-    use crate::{JobClient, JobResult};
-    use futures::{Future, FutureExt};
-    use std::pin::Pin;
-    use std::sync::{Arc, RwLock};
-
-    #[derive(Clone)]
-    struct MockReporter {
-        completed: Arc<RwLock<Option<i64>>>,
-        fail: Arc<RwLock<Option<i64>>>,
-    }
-
-    impl MockReporter {
-        pub fn new() -> Self {
-            Self {
-                completed: Arc::new(RwLock::new(None)),
-                fail: Arc::new(RwLock::new(None)),
-            }
-        }
-    }
-
-    impl JobStatusReporter for MockReporter {
-        fn complete(
-            &mut self,
-            key: i64,
-            _variables: Option<String>,
-        ) -> Pin<Box<dyn Future<Output = Result<(), crate::Error>> + Send>> {
-            let mut write = self.completed.write().unwrap();
-            *write = Some(key);
-            futures::future::ok(()).boxed()
-        }
-
-        fn fail(
-            &mut self,
-            key: i64,
-            _retries: i32,
-            _error_message: Option<String>,
-        ) -> Pin<Box<dyn Future<Output = Result<(), crate::Error>> + Send>> {
-            let mut write = self.fail.write().unwrap();
-            *write = Some(key);
-            futures::future::ok(()).boxed()
-        }
-    }
-
-    #[test]
-    fn calls_client_method_on_completed_job() {
-        let completer = MockReporter::new();
-        let job_client = JobClient {
-            complete: Arc::new(completer.clone()),
-        };
-        let activated_job = crate::ActivatedJob {
-            key: 100,
-            field_type: "".to_string(),
-            custom_headers: "".to_string(),
-            worker: "".to_string(),
-            retries: 0,
-            deadline: 0,
-            variables: "".to_string(),
-        };
-        let result = JobResult::Complete { variables: None };
-        let _ =
-            futures::executor::block_on(job_client.report_status(activated_job, result)).unwrap();
-        let completed = completer.completed.read().unwrap().clone();
-        let failed = completer.fail.read().unwrap().clone();
-        assert_eq!(completed, Some(100));
-        assert_eq!(failed, None);
-    }
-
-    #[test]
-    fn calls_client_method_on_failed_job() {
-        let completer = MockReporter::new();
-        let job_client = JobClient {
-            complete: Arc::new(completer.clone()),
-        };
-        let activated_job = crate::ActivatedJob {
-            key: 100,
-            field_type: "".to_string(),
-            custom_headers: "".to_string(),
-            worker: "".to_string(),
-            retries: 0,
-            deadline: 0,
-            variables: "".to_string(),
-        };
-        let result = JobResult::Fail {
-            error_message: None,
-        };
-        let _ =
-            futures::executor::block_on(job_client.report_status(activated_job, result)).unwrap();
-        let completed = completer.completed.read().unwrap().clone();
-        let failed = completer.fail.read().unwrap().clone();
-        assert_eq!(completed, None);
-        assert_eq!(failed, Some(100));
-    }
-}
+//#[cfg(test)]
+//mod test {
+//    use crate::worker::job_client::JobStatusReporter;
+//    use crate::{JobClient, JobResult};
+//    use futures::{Future, FutureExt};
+//    use std::pin::Pin;
+//    use std::sync::{Arc, RwLock};
+//
+//    #[derive(Clone)]
+//    struct MockReporter {
+//        completed: Arc<RwLock<Option<i64>>>,
+//        fail: Arc<RwLock<Option<i64>>>,
+//    }
+//
+//    impl MockReporter {
+//        pub fn new() -> Self {
+//            Self {
+//                completed: Arc::new(RwLock::new(None)),
+//                fail: Arc::new(RwLock::new(None)),
+//            }
+//        }
+//    }
+//
+//    impl JobStatusReporter for MockReporter {
+//        fn complete(
+//            &mut self,
+//            key: i64,
+//            _variables: Option<String>,
+//        ) -> Pin<Box<dyn Future<Output = Result<(), crate::Error>> + Send>> {
+//            let mut write = self.completed.write().unwrap();
+//            *write = Some(key);
+//            futures::future::ok(()).boxed()
+//        }
+//
+//        fn fail(
+//            &mut self,
+//            key: i64,
+//            _retries: i32,
+//            _error_message: Option<String>,
+//        ) -> Pin<Box<dyn Future<Output = Result<(), crate::Error>> + Send>> {
+//            let mut write = self.fail.write().unwrap();
+//            *write = Some(key);
+//            futures::future::ok(()).boxed()
+//        }
+//    }
+//
+//    #[test]
+//    fn calls_client_method_on_completed_job() {
+//        let completer = MockReporter::new();
+//        let job_client = JobClient {
+//            complete: Arc::new(completer.clone()),
+//        };
+//        let activated_job = crate::ActivatedJob {
+//            key: 100,
+//            field_type: "".to_string(),
+//            custom_headers: "".to_string(),
+//            worker: "".to_string(),
+//            retries: 0,
+//            deadline: 0,
+//            variables: "".to_string(),
+//        };
+//        let result = JobResult::Complete { variables: None };
+//        let _ =
+//            futures::executor::block_on(job_client.report_status(activated_job, result)).unwrap();
+//        let completed = completer.completed.read().unwrap().clone();
+//        let failed = completer.fail.read().unwrap().clone();
+//        assert_eq!(completed, Some(100));
+//        assert_eq!(failed, None);
+//    }
+//
+//    #[test]
+//    fn calls_client_method_on_failed_job() {
+//        let completer = MockReporter::new();
+//        let job_client = JobClient {
+//            complete: Arc::new(completer.clone()),
+//        };
+//        let activated_job = crate::ActivatedJob {
+//            key: 100,
+//            field_type: "".to_string(),
+//            custom_headers: "".to_string(),
+//            worker: "".to_string(),
+//            retries: 0,
+//            deadline: 0,
+//            variables: "".to_string(),
+//        };
+//        let result = JobResult::Fail {
+//            error_message: None,
+//        };
+//        let _ =
+//            futures::executor::block_on(job_client.report_status(activated_job, result)).unwrap();
+//        let completed = completer.completed.read().unwrap().clone();
+//        let failed = completer.fail.read().unwrap().clone();
+//        assert_eq!(completed, None);
+//        assert_eq!(failed, Some(100));
+//    }
+//}

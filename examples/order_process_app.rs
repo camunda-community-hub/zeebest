@@ -2,7 +2,7 @@
 extern crate serde_derive;
 
 use atomic_counter::{AtomicCounter, RelaxedCounter};
-use futures::compat::Stream01CompatExt;
+
 use futures::prelude::*;
 
 use std::sync::Arc;
@@ -108,7 +108,7 @@ async fn main() {
                 futures::future::ready(job_result).boxed()
             };
 
-            let initiate_payment_job = zeebest::JobWorker::new(
+            let _initiate_payment_job = zeebest::JobWorker::new(
                 "rusty-worker".to_string(),
                 "initiate-payment".to_string(),
                 Duration::from_secs(3).as_secs() as _,
@@ -118,7 +118,7 @@ async fn main() {
                 initial_payment_handler,
             );
 
-            let ship_without_insurance_job = zeebest::JobWorker::new(
+            let _ship_without_insurance_job = zeebest::JobWorker::new(
                 "rusty-worker".to_string(),
                 "ship-without-insurance".to_string(),
                 Duration::from_secs(3).as_secs() as _,
@@ -128,7 +128,7 @@ async fn main() {
                 |_| futures::future::ready(JobResult::Complete { variables: None }).boxed(),
             );
 
-            let ship_with_insurance_job = zeebest::JobWorker::new(
+            let _ship_with_insurance_job = zeebest::JobWorker::new(
                 "rusty-worker".to_string(),
                 "ship-with-insurance".to_string(),
                 Duration::from_secs(3).as_secs() as _,
