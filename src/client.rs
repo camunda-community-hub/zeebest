@@ -1,6 +1,5 @@
 use futures::future::{Future, TryFutureExt};
-use futures::stream::{Stream, TryStreamExt};
-use std::sync::Arc;
+use futures::stream::{Stream};
 
 pub use crate::gateway;
 pub use crate::gateway::client::GatewayClient;
@@ -222,9 +221,14 @@ pub struct Partition {
 
 impl From<gateway::Partition> for Partition {
     fn from(p: gateway::Partition) -> Self {
+        let role = match p.role {
+            0 => BrokerRole::LEADER,
+            1 => BrokerRole::FOLLOWER,
+            _ => unreachable!()
+        };
         Self {
             partition_id: p.partition_id,
-            role: p.role.into(),
+            role,
         }
     }
 }
@@ -297,10 +301,10 @@ pub struct CreatedWorkflowInstance {
 impl CreatedWorkflowInstance {
     pub fn new(cwir: gateway::CreateWorkflowInstanceResponse) -> Self {
         Self {
-            workflow_key: cwir.workflowKey,
-            bpmn_process_id: cwir.bpmnProcessId,
+            workflow_key: cwir.workflow_key,
+            bpmn_process_id: cwir.bpmn_process_id,
             version: cwir.version,
-            workflow_instance_key: cwir.workflowInstanceKey,
+            workflow_instance_key: cwir.workflow_instance_key,
         }
     }
 }
@@ -347,15 +351,15 @@ impl Into<gateway::CreateWorkflowInstanceRequest> for WorkflowInstance {
         let mut request = gateway::CreateWorkflowInstanceRequest::default();
         match self.id {
             WorkflowId::BpmnProcessId(bpmn_process_id, version) => {
-                request.set_version(version.into());
-                request.set_bpmnProcessId(bpmn_process_id);
+                request.version = version.into();
+                request.bpmn_process_id = bpmn_process_id;
             }
             WorkflowId::WorkflowKey(key) => {
-                request.set_workflowKey(key);
+                request.workflow_key = key;
             }
         }
         if let Some(variables) = self.variables {
-            request.set_variables(variables);
+            request.variables = variables;
         }
         request
     }
@@ -400,12 +404,12 @@ impl Into<gateway::PublishMessageRequest> for PublishMessage {
     fn into(self) -> gateway::PublishMessageRequest {
         let mut publish_message_request = gateway::PublishMessageRequest::default();
         if let Some(variables) = self.variables {
-            publish_message_request.set_variables(variables);
+            publish_message_request.variables = variables;
         }
-        publish_message_request.set_name(self.name);
-        publish_message_request.set_timeToLive(self.time_to_live);
-        publish_message_request.set_messageId(self.message_id);
-        publish_message_request.set_correlationKey(self.correlation_key);
+        publish_message_request.name = self.name;
+        publish_message_request.time_to_live = self.time_to_live;
+        publish_message_request.message_id = self.message_id;
+        publish_message_request.correlation_key = self.correlation_key;
         publish_message_request
     }
 }
@@ -475,10 +479,10 @@ impl ActivateJobs {
 impl Into<gateway::ActivateJobsRequest> for ActivateJobs {
     fn into(self) -> gateway::ActivateJobsRequest {
         let mut activate_jobs_request = gateway::ActivateJobsRequest::default();
-        activate_jobs_request.set_maxJobsToActivate(self.max_jobs_to_activate); // TODO: make this configurable
-        activate_jobs_request.set_timeout(self.timeout);
-        activate_jobs_request.set_worker(self.worker);
-        activate_jobs_request.set_field_type(self.job_type);
+        activate_jobs_request.max_jobs_to_activate = self.max_jobs_to_activate; // TODO: make this configurable
+        activate_jobs_request.timeout = self.timeout;
+        activate_jobs_request.worker = self.worker;
+        activate_jobs_request.r#type = self.job_type;
         activate_jobs_request
     }
 }
@@ -523,7 +527,7 @@ impl From<gateway::ActivatedJob> for ActivatedJob {
             worker: aj.worker,
             retries: aj.retries,
             deadline: aj.deadline,
-            custom_headers: aj.customHeaders,
+            custom_headers: aj.custom_headers,
             field_type: aj.r#type,
         }
     }

@@ -8,13 +8,13 @@ pub trait JobStatusReporter {
         &self,
         key: i64,
         variables: Option<String>,
-    ) -> Pin<Box<dyn Future<Output = Result<(), crate::Error>> + Send>>;
+    ) -> Pin<Box<dyn Future<Output = Result<(), crate::Error>> + Send  + '_>>;
     fn fail(
         &self,
         key: i64,
         retries: i32,
         error_message: Option<String>,
-    ) -> Pin<Box<dyn Future<Output = Result<(), crate::Error>> + Send>>;
+    ) -> Pin<Box<dyn Future<Output = Result<(), crate::Error>> + Send  + '_>>;
 }
 
 pub struct Reporter {
@@ -32,7 +32,7 @@ impl JobStatusReporter for Reporter {
         &self,
         key: i64,
         variables: Option<String>,
-    ) -> Pin<Box<dyn Future<Output = Result<(), crate::Error>> + Send>> {
+    ) -> Pin<Box<dyn Future<Output = Result<(), crate::Error>> + Send  + '_>> {
         let complete_job = CompleteJob {
             job_key: key,
             variables,
@@ -45,7 +45,7 @@ impl JobStatusReporter for Reporter {
         key: i64,
         retries: i32,
         error_message: Option<String>,
-    ) -> Pin<Box<dyn Future<Output = Result<(), crate::Error>> + Send>> {
+    ) -> Pin<Box<dyn Future<Output = Result<(), crate::Error>> + Send + '_>> {
         let error_message = error_message.unwrap_or("".to_string());
         self.client
             .fail_job(key, retries - 1, error_message)
@@ -68,7 +68,7 @@ impl JobClient {
         &self,
         activated_job: ActivatedJob,
         job_result: JobResult,
-    ) -> Pin<Box<dyn Future<Output = Result<(), crate::Error>> + Send>> {
+    ) -> Pin<Box<dyn Future<Output = Result<(), crate::Error>> + Send  + '_>> {
         let key = activated_job.key;
         let retries = activated_job.retries;
         match job_result {
