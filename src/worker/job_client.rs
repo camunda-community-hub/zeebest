@@ -5,12 +5,12 @@ use std::sync::Arc;
 
 pub trait JobStatusReporter {
     fn complete(
-        &self,
+        &mut self,
         key: i64,
         variables: Option<String>,
     ) -> Pin<Box<dyn Future<Output = Result<(), crate::Error>> + Send  + '_>>;
     fn fail(
-        &self,
+        &mut self,
         key: i64,
         retries: i32,
         error_message: Option<String>,
@@ -29,7 +29,7 @@ impl Reporter {
 
 impl JobStatusReporter for Reporter {
     fn complete(
-        &self,
+        &mut self,
         key: i64,
         variables: Option<String>,
     ) -> Pin<Box<dyn Future<Output = Result<(), crate::Error>> + Send  + '_>> {
@@ -41,7 +41,7 @@ impl JobStatusReporter for Reporter {
     }
 
     fn fail(
-        &self,
+        &mut self,
         key: i64,
         retries: i32,
         error_message: Option<String>,
@@ -65,7 +65,7 @@ impl JobClient {
     }
 
     pub fn report_status(
-        &self,
+        &mut self,
         activated_job: ActivatedJob,
         job_result: JobResult,
     ) -> Pin<Box<dyn Future<Output = Result<(), crate::Error>> + Send  + '_>> {
@@ -107,7 +107,7 @@ mod test {
 
     impl JobStatusReporter for MockReporter {
         fn complete(
-            &self,
+            &mut self,
             key: i64,
             _variables: Option<String>,
         ) -> Pin<Box<dyn Future<Output = Result<(), crate::Error>> + Send>> {
@@ -117,7 +117,7 @@ mod test {
         }
 
         fn fail(
-            &self,
+            &mut self,
             key: i64,
             _retries: i32,
             _error_message: Option<String>,

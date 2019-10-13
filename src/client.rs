@@ -69,7 +69,7 @@ impl Client {
     }
 
     /// Get the topology. The returned struct is similar to what is printed when running `zbctl status`.
-    pub fn topology(&self) -> impl Future<Output = Result<Topology, Error>> + '_ {
+    pub fn topology(&mut self) -> impl Future<Output = Result<Topology, Error>> + '_ {
         let request = tonic::Request::new(gateway::TopologyRequest {});
         self.gateway_client
             .topology(request)
@@ -79,7 +79,7 @@ impl Client {
 
     /// deploy a single bpmn workflow
     pub fn deploy_bpmn_workflow<S: Into<String>>(
-        &self,
+        &mut self,
         workflow_name: S,
         workflow_definition: Vec<u8>,
     ) -> impl Future<Output = Result<DeployedWorkflows, Error>> + '_ {
@@ -100,7 +100,7 @@ impl Client {
 
     /// create a workflow instance with a payload
     pub fn create_workflow_instance(
-        &self,
+        &mut self,
         workflow_instance: WorkflowInstance,
     ) -> impl Future<Output = Result<CreatedWorkflowInstance, Error>> + '_ {
         let request = tonic::Request::new(workflow_instance.into());
@@ -112,19 +112,20 @@ impl Client {
 
     /// activate jobs
     pub fn activate_jobs(
-        &self,
+        &mut self,
         jobs_config: ActivateJobs,
     ) -> impl Stream<Item = Result<ActivatedJobs, Error>> + Send + '_ {
-        let request = tonic::Request::new(jobs_config.into());
-        self.gateway_client
-            .activate_jobs(request)
-            .map_err(|e| Error::ActivateJobError(e))
-            .map_ok(|ajr| ActivatedJobs::new(ajr.into_inner()))
+        futures::stream::empty()
+//        let request = tonic::Request::new(jobs_config.into());
+//        self.gateway_client
+//            .activate_jobs(request)
+//            .map_err(|e| Error::ActivateJobError(e))
+//            .map_ok(|ajr| ActivatedJobs::new(ajr.into_inner()))
     }
 
     /// complete a job
     pub fn complete_job(
-        &self,
+        &mut self,
         complete_job: CompleteJob,
     ) -> impl Future<Output = Result<(), Error>> + Send + '_ {
         let request = tonic::Request::new(complete_job.into());
@@ -136,12 +137,11 @@ impl Client {
 
     /// fail a job
     pub fn fail_job(
-        &self,
+        &mut self,
         job_key: i64,
         retries: i32,
         error_message: String,
     ) -> impl Future<Output = Result<(), Error>> + Send + '_ {
-        let request_options = Default::default();
         let mut request = gateway::FailJobRequest::default();
         request.job_key = job_key;
         request.retries = retries;
@@ -155,7 +155,7 @@ impl Client {
 
     /// Publish a message
     pub fn publish_message(
-        &self,
+        &mut self,
         publish_message: PublishMessage,
     ) -> impl Future<Output = Result<(), Error>> + '_ {
         let request = tonic::Request::new(publish_message.into());
