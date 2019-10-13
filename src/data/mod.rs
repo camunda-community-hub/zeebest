@@ -12,6 +12,8 @@ pub mod topology;
 pub mod workflow;
 pub mod workflow_id;
 pub mod workflow_instance;
+pub mod workflow_version;
+pub mod error;
 
 pub mod client_data {
     pub use super::activate_jobs::*;
@@ -29,4 +31,6 @@ pub mod client_data {
     pub use super::workflow::*;
     pub use super::workflow_id::*;
     pub use super::workflow_instance::*;
+    pub use super::workflow_version::*;
+    pub use super::error::*;
 }

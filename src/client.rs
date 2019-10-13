@@ -1,51 +1,7 @@
 pub use crate::gateway;
-use crate::{ActivateJobs, ActivatedJobs, CompleteJob, CreatedWorkflowInstance, DeployedWorkflows, Topology, WorkflowInstance, PublishMessage};
+use crate::{ActivateJobs, ActivatedJobs, CompleteJob, CreatedWorkflowInstance, DeployedWorkflows, Topology, WorkflowInstance, PublishMessage, Error};
 use std::sync::{Arc};
 use futures::lock::Mutex;
-
-#[derive(Debug, Fail)]
-pub enum Error {
-    #[fail(display = "Gateway Error. {:?}", _0)]
-    GatewayError(tonic::transport::Error),
-    #[fail(display = "Topology Error. {:?}", _0)]
-    TopologyError(tonic::Status),
-    #[fail(display = "List Workflows Error. {:?}", _0)]
-    ListWorkflowsError(tonic::Status),
-    #[fail(display = "Deploy Workflow Error. {:?}", _0)]
-    DeployWorkflowError(tonic::Status),
-    #[fail(display = "Create Workflow Instance Error. {:?}", _0)]
-    CreateWorkflowInstanceError(tonic::Status),
-    #[fail(display = "Activate Job Error. {:?}", _0)]
-    ActivateJobError(tonic::Status),
-    #[fail(display = "Complete Job Error. {:?}", _0)]
-    CompleteJobError(tonic::Status),
-    #[fail(display = "Publish Message Error. {:?}", _0)]
-    PublishMessageError(tonic::Status),
-    #[fail(display = "Fail Job Error. {:?}", _0)]
-    FailJobError(tonic::Status),
-    #[cfg(feature = "timer")]
-    #[fail(display = "Interval Error. {:?}", _0)]
-    IntervalError(tokio::timer::Error),
-    #[fail(display = "Job Error: {}", _0)]
-    JobError(String),
-    #[fail(display = "Json Payload Serialization Error. {:?}", _0)]
-    JsonError(serde_json::error::Error),
-}
-
-/// Strongly type the version. `WorkflowVersion::Latest` is translated to `-1`.
-pub enum WorkflowVersion {
-    Latest,
-    Version(i32),
-}
-
-impl Into<i32> for WorkflowVersion {
-    fn into(self) -> i32 {
-        match self {
-            WorkflowVersion::Latest => -1,
-            WorkflowVersion::Version(v) => v,
-        }
-    }
-}
 
 /// The primary type for interacting with zeebe.
 #[derive(Clone)]
@@ -100,10 +56,7 @@ impl Client {
         workflow_instance: WorkflowInstance,
     ) -> Result<CreatedWorkflowInstance, Error> {
         let request = tonic::Request::new(workflow_instance.into());
-        let this = self.gateway_client.clone();
-        let mut client = this.lock().await;
-        let response = client.create_workflow_instance(request);
-        match response.await {
+        match self.gateway_client.lock().await.create_workflow_instance(request).await {
             Ok(cwr) => Ok(CreatedWorkflowInstance::new(cwr.into_inner())),
             Err(e) => Err(Error::CreateWorkflowInstanceError(e)),
         }
