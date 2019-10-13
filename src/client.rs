@@ -64,7 +64,7 @@ impl Client {
     }
 
     /// Get the topology. The returned struct is similar to what is printed when running `zbctl status`.
-    pub async fn topology(&mut self) -> Result<Topology, Error> {
+    pub async fn topology(&self) -> Result<Topology, Error> {
         let request = tonic::Request::new(gateway::TopologyRequest {});
         match self.gateway_client.lock().await.topology(request).await {
             Ok(tr) => Ok(tr.into_inner().into()),
@@ -74,7 +74,7 @@ impl Client {
 
     /// deploy a single bpmn workflow
     pub async fn deploy_bpmn_workflow<S: Into<String>>(
-        &mut self,
+        &self,
         workflow_name: S,
         workflow_definition: Vec<u8>,
     ) -> Result<DeployedWorkflows, Error> {
@@ -111,7 +111,7 @@ impl Client {
 
     /// activate jobs
     pub async fn activate_jobs(
-        &mut self,
+        &self,
         jobs_config: ActivateJobs,
     ) -> Result<ActivatedJobs, Error> {
         let request = tonic::Request::new(jobs_config.into());
@@ -124,7 +124,7 @@ impl Client {
     }
 
     /// complete a job
-    pub async fn complete_job(&mut self, complete_job: CompleteJob) -> Result<(), Error> {
+    pub async fn complete_job(&self, complete_job: CompleteJob) -> Result<(), Error> {
         let request = tonic::Request::new(complete_job.into());
         match self.gateway_client.lock().await.complete_job(request).await {
             Ok(_) => Ok(()),
@@ -134,7 +134,7 @@ impl Client {
 
     /// fail a job
     pub async fn fail_job(
-        &mut self,
+        &self,
         job_key: i64,
         retries: i32,
         error_message: String,
@@ -152,7 +152,7 @@ impl Client {
 
     /// Publish a message
     pub async fn publish_message(
-        &mut self,
+        &self,
         publish_message: PublishMessage,
     ) -> Result<(), Error> {
         let request = tonic::Request::new(publish_message.into());

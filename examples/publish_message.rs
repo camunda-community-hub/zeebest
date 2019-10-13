@@ -1,6 +1,5 @@
 #[macro_use]
 extern crate serde_derive;
-use futures::executor::block_on;
 use zeebest::{Client, PublishMessage};
 
 #[derive(Serialize)]
@@ -9,8 +8,9 @@ struct Payment {
     pub total_charged: f32,
 }
 
-fn main() {
-    let client = Client::new("127.0.0.1", 26500).unwrap();
+#[runtime::main]
+async fn main() {
+    let client = Client::new("127.0.0.1:26500").unwrap();
 
     let payment = Payment {
         total_charged: 25.95,
@@ -20,6 +20,6 @@ fn main() {
         .variables(&payment)
         .unwrap();
 
-    block_on(client.publish_message(publish_message)).unwrap();
+    client.publish_message(publish_message).await.unwrap();
     println!("published message");
 }
