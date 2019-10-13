@@ -14,7 +14,7 @@ mod client;
 mod worker;
 
 pub mod gateway {
-    tonic::include_proto!("gateway_protocol");
+    include!("../target/proto/build/gateway_protocol.rs");
 }
 
 pub use client::*;

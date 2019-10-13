@@ -15,23 +15,23 @@ pub mod grpc {
 #[derive(Debug, Fail)]
 pub enum Error {
     #[fail(display = "Gateway Error. {:?}", _0)]
-    GatewayError(grpc::Error),
+    GatewayError(tonic::Status),
     #[fail(display = "Topology Error. {:?}", _0)]
-    TopologyError(grpc::Error),
+    TopologyError(tonic::Status),
     #[fail(display = "List Workflows Error. {:?}", _0)]
-    ListWorkflowsError(grpc::Error),
+    ListWorkflowsError(tonic::Status),
     #[fail(display = "Deploy Workflow Error. {:?}", _0)]
-    DeployWorkflowError(grpc::Error),
+    DeployWorkflowError(tonic::Status),
     #[fail(display = "Create Workflow Instance Error. {:?}", _0)]
-    CreateWorkflowInstanceError(grpc::Error),
+    CreateWorkflowInstanceError(tonic::Status),
     #[fail(display = "Activate Job Error. {:?}", _0)]
-    ActivateJobError(grpc::Error),
+    ActivateJobError(tonic::Status),
     #[fail(display = "Complete Job Error. {:?}", _0)]
-    CompleteJobError(grpc::Error),
+    CompleteJobError(tonic::Status),
     #[fail(display = "Publish Message Error. {:?}", _0)]
-    PublishMessageError(grpc::Error),
+    PublishMessageError(tonic::Status),
     #[fail(display = "Fail Job Error. {:?}", _0)]
-    FailJobError(grpc::Error),
+    FailJobError(tonic::Status),
     #[cfg(feature = "timer")]
     #[fail(display = "Interval Error. {:?}", _0)]
     IntervalError(tokio::timer::Error),
@@ -58,11 +58,11 @@ impl Into<i32> for WorkflowVersion {
 
 /// The primary type for interacting with zeebe.
 #[derive(Clone)]
-pub struct Client<T> {
-    pub gateway_client: GatewayClient<T>,
+pub struct Client {
+    pub gateway_client: gateway::client::GatewayClient<tonic::transport::Channel>,
 }
 
-impl<T> Client<T> {
+impl Client {
     /// Construct a new `Client` that connects to a broker with `host` and `port`.
     pub fn new(host: &str, port: u16) -> Result<Self, Error> {
         GatewayClient::connect(host, port, Default::default())
@@ -72,12 +72,11 @@ impl<T> Client<T> {
     }
 
     /// Get the topology. The returned struct is similar to what is printed when running `zbctl status`.
-    pub fn topology(&self) -> impl Future<Output = Result<Topology, Error>> {
+    pub fn topology(&self) -> impl Future<Output = Result<Topology, Error>> + '_ {
+        let request = tonic::Request::new(gateway::TopologyRequest {});
         self.gateway_client
-            .topology(Default::default(), Default::default())
-            .drop_metadata()
-            .compat()
-            .map_ok(|tr| Topology::new(tr))
+            .topology(request)
+            .map_ok(|tr| Topology::new(tr.into_inner()))
             .map_err(|e| Error::TopologyError(e))
     }
 
@@ -86,22 +85,20 @@ impl<T> Client<T> {
         &self,
         workflow_name: S,
         workflow_definition: Vec<u8>,
-    ) -> impl Future<Output = Result<DeployedWorkflows, Error>> {
+    ) -> impl Future<Output = Result<DeployedWorkflows, Error>> + '_ {
         // construct request
         let mut workflow_request_object = gateway::WorkflowRequestObject::default();
-        workflow_request_object.set_name(workflow_name.into());
-        workflow_request_object.set_definition(workflow_definition);
-        workflow_request_object.set_field_type(gateway::workflow_request_object::Bpmn);
+        workflow_request_object.name = workflow_name.into();
+        workflow_request_object.definition = workflow_definition;
+        workflow_request_object.r#type = gateway::workflow_request_object::ResourceType::Bpmn as i32;
         let mut deploy_workflow_request = gateway::DeployWorkflowRequest::default();
-        deploy_workflow_request
-            .set_workflows(protobuf::RepeatedField::from(vec![workflow_request_object]));
+        deploy_workflow_request.workflows = vec![workflow_request_object];
+        let request = tonic::Request::new(deploy_workflow_request);
         // deploy the bpmn workflow
         self.gateway_client
-            .deploy_workflow(Default::default(), deploy_workflow_request)
-            .drop_metadata()
-            .compat()
+            .deploy_workflow(request)
             .map_err(|e| Error::DeployWorkflowError(e))
-            .map_ok(|dwr| DeployedWorkflows::new(dwr))
+            .map_ok(|dwr| DeployedWorkflows::new(dwr.into_inner()))
     }
 
     /// create a workflow instance with a payload
@@ -184,7 +181,7 @@ pub struct Topology {
 }
 
 impl Topology {
-    pub fn new(topology_response: TopologyResponse) -> Topology {
+    pub fn new(topology_response: gateway::TopologyResponse) -> Topology {
         Self {
             brokers: topology_response
                 .brokers
