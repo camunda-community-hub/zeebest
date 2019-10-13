@@ -1,6 +1,6 @@
 pub use crate::gateway;
 use crate::{ActivateJobs, ActivatedJobs, CompleteJob, CreatedWorkflowInstance, DeployedWorkflows, Topology, WorkflowInstance, PublishMessage};
-use std::sync::{Arc, RwLock};
+use std::sync::{Arc};
 use futures::lock::Mutex;
 
 #[derive(Debug, Fail)]
