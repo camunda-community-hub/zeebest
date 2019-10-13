@@ -131,8 +131,6 @@
         </bpmndi:BPMNLabel>
       </bpmndi:BPMNShape>
       <bpmndi:BPMNEdge id="SequenceFlow_19nvfnb_di" bpmnElement="SequenceFlow_19nvfnb">
-        <di:waypoint x="784" y="177" />
-        <di:waypoint x="834" y="177" />
       </bpmndi:BPMNEdge>
     </bpmndi:BPMNPlane>
   </bpmndi:BPMNDiagram>

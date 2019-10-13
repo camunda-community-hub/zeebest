@@ -1,20 +1,21 @@
-use crate::{ActivatedJob, Client, CompleteJob, JobResult};
 use futures::{Future, FutureExt};
 use std::pin::Pin;
-use std::sync::Arc;
+use std::sync::{Arc, RwLock};
+use tonic::codegen::{Body, HttpBody, StdError};
+use crate::{Client, ActivatedJob, JobResult};
 
 pub trait JobStatusReporter {
     fn complete(
         &mut self,
         key: i64,
         variables: Option<String>,
-    ) -> Pin<Box<dyn Future<Output = Result<(), crate::Error>> + Send  + '_>>;
+    ) -> Pin<Box<dyn Future<Output = Result<(), crate::Error>> + Send + '_>>;
     fn fail(
         &mut self,
         key: i64,
         retries: i32,
         error_message: Option<String>,
-    ) -> Pin<Box<dyn Future<Output = Result<(), crate::Error>> + Send  + '_>>;
+    ) -> Pin<Box<dyn Future<Output = Result<(), crate::Error>> + Send + '_>>;
 }
 
 pub struct Reporter {
@@ -32,12 +33,14 @@ impl JobStatusReporter for Reporter {
         &mut self,
         key: i64,
         variables: Option<String>,
-    ) -> Pin<Box<dyn Future<Output = Result<(), crate::Error>> + Send  + '_>> {
-        let complete_job = CompleteJob {
-            job_key: key,
-            variables,
-        };
-        self.client.complete_job(complete_job).boxed()
+    ) -> Pin<Box<dyn Future<Output = Result<(), crate::Error>> + Send + '_>> {
+        unimplemented!()
+
+        //        let complete_job = CompleteJob {
+        //            job_key: key,
+        //            variables,
+        //        };
+        //        self.client.complete_job(complete_job).boxed()
     }
 
     fn fail(
@@ -46,21 +49,22 @@ impl JobStatusReporter for Reporter {
         retries: i32,
         error_message: Option<String>,
     ) -> Pin<Box<dyn Future<Output = Result<(), crate::Error>> + Send + '_>> {
-        let error_message = error_message.unwrap_or("".to_string());
-        self.client
-            .fail_job(key, retries - 1, error_message)
-            .boxed()
+        unimplemented!()
+        //        let error_message = error_message.unwrap_or("".to_string());
+        //        self.client
+        //            .fail_job(key, retries - 1, error_message)
+        //            .boxed()
     }
 }
 
 pub struct JobClient {
-    complete: Arc<dyn JobStatusReporter + Send + Sync>,
+    complete: Arc<RwLock<dyn JobStatusReporter + Send + Sync>>,
 }
 
 impl JobClient {
     pub fn new<T: JobStatusReporter + Send + Sync + 'static>(completer: T) -> Self {
         Self {
-            complete: Arc::new(completer),
+            complete: Arc::new(RwLock::new(completer)),
         }
     }
 
@@ -68,17 +72,18 @@ impl JobClient {
         &mut self,
         activated_job: ActivatedJob,
         job_result: JobResult,
-    ) -> Pin<Box<dyn Future<Output = Result<(), crate::Error>> + Send  + '_>> {
+    ) -> Pin<Box<dyn Future<Output = Result<(), crate::Error>> + Send + '_>> {
         let key = activated_job.key;
         let retries = activated_job.retries;
-        match job_result {
-            JobResult::NoAction => futures::future::ok(()).boxed(),
-            JobResult::Fail { error_message } => match error_message {
-                Some(msg) => self.complete.fail(key, retries, Some(msg)),
-                None => self.complete.fail(key, retries, None),
-            },
-            JobResult::Complete { variables } => self.complete.complete(key, variables),
-        }
+        futures::future::ok(()).boxed()
+        //        match job_result {
+        //            JobResult::NoAction => futures::future::ok(()).boxed(),
+        //            JobResult::Fail { error_message } => match error_message {
+        //                Some(msg) => self.complete.write().unwrap().fail(key, retries, Some(msg)),
+        //                None => self.complete.write().unwrap().fail(key, retries, None),
+        //            },
+        //            JobResult::Complete { variables } => self.complete.write().unwrap().complete(key, variables),
+        //        }
     }
 }
 

@@ -1,8 +1,7 @@
-use crate::{ActivateJobs, ActivatedJob, ActivatedJobs, Client};
 use futures::{Future, FutureExt, StreamExt};
 use std::pin::Pin;
 use std::sync::atomic::{AtomicUsize, Ordering};
-use std::sync::Arc;
+use std::sync::{Arc, RwLock};
 
 mod job_client;
 mod job_handler;
@@ -10,6 +9,8 @@ mod job_handler;
 pub use job_client::JobClient;
 pub use job_client::Reporter;
 pub use job_handler::JobHandler;
+use tonic::codegen::{Body, HttpBody, StdError};
+use crate::{Client, ActivatedJob, ActivateJobs};
 
 /// An option that describes what the job worker should do if if the job handler panics.
 #[derive(Clone, Copy, Debug, PartialEq, Eq, Hash)]
@@ -40,8 +41,8 @@ pub struct JobInternal {
     job_handler: JobHandler,
     job_count: AtomicUsize,
     max_concurrent_jobs: usize,
-    client: Client,
-    job_client: JobClient,
+    client: RwLock<Client>,
+    job_client: RwLock<JobClient>,
     worker_name: String,
     job_type: String,
     timeout: i64,
@@ -64,50 +65,58 @@ impl JobInternal {
         );
         activate_jobs.max_jobs_to_activate = (self.max_concurrent_jobs - current_job_count) as _;
 
-        let activate_jobs_stream = self.client.activate_jobs(activate_jobs);
+        //        let activate_jobs_stream = {
+        //            let mut client = self.client.write().unwrap();
+        //            client.activate_jobs(activate_jobs)
+        //        };
 
-        let slf = self.clone();
-        activate_jobs_stream
-            .for_each_concurrent(None, move |result| match result {
-                Err(_e) => futures::future::ready(()).boxed(),
-                Ok(ActivatedJobs { activated_jobs }) => {
-                    let slf = slf.clone();
-                    let job_count = activated_jobs.len();
-                    slf.job_count.fetch_add(job_count, Ordering::SeqCst);
-                    futures::stream::iter(activated_jobs)
-                        .for_each_concurrent(None, move |aj| {
-                            let slf = slf.clone();
-                            slf.job_handler
-                                .process_job(aj.clone())
-                                .then(move |result| {
-                                    slf.job_count.fetch_sub(1, Ordering::SeqCst);
-                                    match result {
-                                        Err(_) => match slf.panic_option {
-                                            PanicOption::FailJobOnPanic => {
-                                                slf.job_client.report_status(
-                                                    aj,
-                                                    JobResult::Fail {
-                                                        error_message: Some(
-                                                            "worker panicked".to_string(),
-                                                        ),
-                                                    },
-                                                )
-                                            }
-                                            PanicOption::DoNothingOnPanic => {
-                                                futures::future::ok(()).boxed()
-                                            }
-                                        },
-                                        Ok(job_result) => {
-                                            slf.job_client.report_status(aj, job_result)
-                                        }
-                                    }
-                                })
-                                .then(|_| futures::future::ready(()))
-                        })
-                        .boxed()
-                }
-            })
-            .boxed()
+        futures::future::ready(()).boxed()
+        //
+        //        let slf = self.clone();
+        //        activate_jobs_stream
+        //            .for_each_concurrent(None, move |result| match result {
+        //                Err(_e) => futures::future::ready(()).boxed(),
+        //                Ok(ActivatedJobs { activated_jobs }) => {
+        //                    let slf = slf.clone();
+        //                    let job_count = activated_jobs.len();
+        //                    slf.job_count.fetch_add(job_count, Ordering::SeqCst);
+        //                    futures::stream::iter(activated_jobs)
+        //                        .for_each_concurrent(None, move |aj| {
+        //                            let slf = slf.clone();
+        //                            slf.job_handler
+        //                                .process_job(aj.clone())
+        //                                .then(move |result| {
+        //                                    slf.job_count.fetch_sub(1, Ordering::SeqCst);
+        //                                    match result {
+        //                                        Err(_) => match slf.panic_option {
+        //                                            PanicOption::FailJobOnPanic => {
+        //                                                let mut job_client = slf.job_client.write().unwrap();
+        //                                                job_client.report_status(
+        //                                                    aj,
+        //                                                    JobResult::Fail {
+        //                                                        error_message: Some(
+        //                                                            "worker panicked".to_string(),
+        //                                                        ),
+        //                                                    },
+        //                                                )
+        //                                            }
+        //                                            PanicOption::DoNothingOnPanic => {
+        //                                                futures::future::ok(()).boxed()
+        //                                            }
+        //                                        },
+        //                                        Ok(job_result) => {
+        //                                            let mut job_client = slf.job_client.write().unwrap();
+        //                                            job_client.report_status(aj, job_result)
+        //                                        }
+        //                                        _ => unimplemented!()
+        //                                    }
+        //                                })
+        //                                .then(|_| futures::future::ready(()))
+        //                        })
+        //                        .boxed()
+        //                }
+        //            })
+        //            .boxed()
     }
 }
 
@@ -133,19 +142,21 @@ impl JobWorker {
             + Sync
             + 'static,
     {
-        let job_internal = Arc::new(JobInternal {
-            job_client: JobClient::new(Reporter::new(client.clone())),
-            job_handler: JobHandler::new(Arc::new(job_handler)),
-            job_count: AtomicUsize::new(0),
-            max_concurrent_jobs: max_amount as _,
-            client,
-            worker_name: worker,
-            job_type,
-            timeout,
-            panic_option,
-        });
+        unimplemented!()
 
-        JobWorker { job_internal }
+        //        let job_internal = Arc::new(JobInternal {
+        //            job_client: RwLock::new(JobClient::new(Reporter::new(client.clone()))),
+        //            job_handler: JobHandler::new(Arc::new(job_handler)),
+        //            job_count: AtomicUsize::new(0),
+        //            max_concurrent_jobs: max_amount as _,
+        //            client: RwLock::new(client),
+        //            worker_name: worker,
+        //            job_type,
+        //            timeout,
+        //            panic_option,
+        //        });
+        //
+        //        JobWorker { job_internal }
     }
 
     /// Activates a batch of jobs and processes each job with the job handler. Will not activate

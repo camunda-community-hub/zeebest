@@ -10,12 +10,20 @@
 extern crate failure;
 #[macro_use]
 extern crate tonic;
+#[macro_use]
+extern crate futures;
 mod client;
 mod worker;
+mod data;
 
+//pub mod gateway {
+//    include!("../target/proto/build/gateway_protocol.rs");
+//}
+mod proto;
 pub mod gateway {
-    include!("../target/proto/build/gateway_protocol.rs");
+    pub use crate::proto::gateway_protocol::*;
 }
 
 pub use client::*;
 pub use worker::*;
+pub use data::client_data::*;
