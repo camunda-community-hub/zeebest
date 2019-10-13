@@ -1,20 +1,7 @@
-use futures::future::{TryFutureExt};
-
-use futures::{StreamExt};
-
 pub use crate::gateway;
-pub use crate::gateway::client::GatewayClient;
-
 use crate::{ActivateJobs, ActivatedJobs, CompleteJob, CreatedWorkflowInstance, DeployedWorkflows, Topology, WorkflowInstance, PublishMessage};
-
-
-
-
-
-
-pub mod grpc {
-    type Error = Box<dyn std::error::Error + Sync + Send>;
-}
+use std::sync::{Arc, RwLock};
+use futures::lock::Mutex;
 
 #[derive(Debug, Fail)]
 pub enum Error {
@@ -63,23 +50,23 @@ impl Into<i32> for WorkflowVersion {
 /// The primary type for interacting with zeebe.
 #[derive(Clone)]
 pub struct Client {
-    pub gateway_client: gateway::client::GatewayClient<tonic::transport::Channel>,
+    pub gateway_client: Arc<Mutex<gateway::client::GatewayClient<tonic::transport::Channel>>>,
 }
 
 impl Client {
     /// Construct a new `Client` that connects to a broker with `host` and `port`.
-    pub fn new(_host: &str, _port: u16) -> Result<Self, Error> {
-        let x = GatewayClient::<tonic::transport::Channel>::connect("localhost:3000");
-        let x = x
-            .map_err(|e| Error::GatewayError(e))
-            .map(|gateway_client| Client { gateway_client });
-        x
+    pub fn new(server_url: &str) -> Result<Self, Error> {
+        use gateway::client::GatewayClient;
+        match GatewayClient::<tonic::transport::Channel>::connect(server_url.to_string()) {
+            Ok(gc) => Ok(Client { gateway_client: Arc::new(Mutex::new(gc)) }),
+            Err(e) => Err(Error::GatewayError(e)),
+        }
     }
 
     /// Get the topology. The returned struct is similar to what is printed when running `zbctl status`.
     pub async fn topology(&mut self) -> Result<Topology, Error> {
         let request = tonic::Request::new(gateway::TopologyRequest {});
-        match self.gateway_client.topology(request).await {
+        match self.gateway_client.lock().await.topology(request).await {
             Ok(tr) => Ok(tr.into_inner().into()),
             Err(e) => Err(Error::TopologyError(e)),
         }
@@ -100,19 +87,23 @@ impl Client {
         let mut deploy_workflow_request = gateway::DeployWorkflowRequest::default();
         deploy_workflow_request.workflows = vec![workflow_request_object];
         let request = tonic::Request::new(deploy_workflow_request);
-        match self.gateway_client.deploy_workflow(request).await {
+        match self.gateway_client.lock().await.deploy_workflow(request).await {
             Ok(dwr) => Ok(DeployedWorkflows::new(dwr.into_inner())),
             Err(e) => Err(Error::DeployWorkflowError(e)),
         }
     }
 
     /// create a workflow instance with a payload
+    /// create a workflow instance with a payload
     pub async fn create_workflow_instance(
-        &mut self,
+        &self,
         workflow_instance: WorkflowInstance,
     ) -> Result<CreatedWorkflowInstance, Error> {
         let request = tonic::Request::new(workflow_instance.into());
-        match self.gateway_client.create_workflow_instance(request).await {
+        let this = self.gateway_client.clone();
+        let mut client = this.lock().await;
+        let response = client.create_workflow_instance(request);
+        match response.await {
             Ok(cwr) => Ok(CreatedWorkflowInstance::new(cwr.into_inner())),
             Err(e) => Err(Error::CreateWorkflowInstanceError(e)),
         }
@@ -124,7 +115,7 @@ impl Client {
         jobs_config: ActivateJobs,
     ) -> Result<ActivatedJobs, Error> {
         let request = tonic::Request::new(jobs_config.into());
-        match self.gateway_client.activate_jobs(request).await {
+        match self.gateway_client.lock().await.activate_jobs(request).await {
             Ok(ajr) => Ok(ActivatedJobs {
                 stream: ajr.into_inner(),
             }),
@@ -135,7 +126,7 @@ impl Client {
     /// complete a job
     pub async fn complete_job(&mut self, complete_job: CompleteJob) -> Result<(), Error> {
         let request = tonic::Request::new(complete_job.into());
-        match self.gateway_client.complete_job(request).await {
+        match self.gateway_client.lock().await.complete_job(request).await {
             Ok(_) => Ok(()),
             Err(e) => Err(Error::CompleteJobError(e)),
         }
@@ -153,7 +144,7 @@ impl Client {
         request.retries = retries;
         request.error_message = error_message;
         let request = tonic::Request::new(request);
-        match self.gateway_client.fail_job(request).await {
+        match self.gateway_client.lock().await.fail_job(request).await {
             Ok(_) => Ok(()),
             Err(e) => Err(Error::FailJobError(e)),
         }
@@ -165,7 +156,7 @@ impl Client {
         publish_message: PublishMessage,
     ) -> Result<(), Error> {
         let request = tonic::Request::new(publish_message.into());
-        match self.gateway_client.publish_message(request).await {
+        match self.gateway_client.lock().await.publish_message(request).await {
             Ok(_) => Ok(()),
             Err(e) => Err(Error::PublishMessageError(e)),
         }
