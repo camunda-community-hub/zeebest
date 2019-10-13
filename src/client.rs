@@ -1,4 +1,3 @@
-use futures::compat::{Future01CompatExt, Stream01CompatExt};
 use futures::future::{Future, TryFutureExt};
 use futures::stream::{Stream, TryStreamExt};
 use std::sync::Arc;
@@ -15,7 +14,7 @@ pub mod grpc {
 #[derive(Debug, Fail)]
 pub enum Error {
     #[fail(display = "Gateway Error. {:?}", _0)]
-    GatewayError(tonic::Status),
+    GatewayError(tonic::transport::Error),
     #[fail(display = "Topology Error. {:?}", _0)]
     TopologyError(tonic::Status),
     #[fail(display = "List Workflows Error. {:?}", _0)]
@@ -65,9 +64,8 @@ pub struct Client {
 impl Client {
     /// Construct a new `Client` that connects to a broker with `host` and `port`.
     pub fn new(host: &str, port: u16) -> Result<Self, Error> {
-        GatewayClient::connect(host, port, Default::default())
+        GatewayClient::connect("localhost:3000")
             .map_err(|e| Error::GatewayError(e))
-            .map(Arc::new)
             .map(|gateway_client| Client { gateway_client })
     }
 
@@ -105,37 +103,34 @@ impl Client {
     pub fn create_workflow_instance(
         &self,
         workflow_instance: WorkflowInstance,
-    ) -> impl Future<Output = Result<CreatedWorkflowInstance, Error>> {
+    ) -> impl Future<Output = Result<CreatedWorkflowInstance, Error>> + '_ {
+        let request = tonic::Request::new(workflow_instance.into());
         self.gateway_client
-            .create_workflow_instance(Default::default(), workflow_instance.into())
-            .drop_metadata()
-            .compat()
+            .create_workflow_instance(request)
             .map_err(|e| Error::CreateWorkflowInstanceError(e))
-            .map_ok(|cwr| CreatedWorkflowInstance::new(cwr))
+            .map_ok(|cwr| CreatedWorkflowInstance::new(cwr.into_inner()))
     }
 
     /// activate jobs
     pub fn activate_jobs(
         &self,
         jobs_config: ActivateJobs,
-    ) -> impl Stream<Item = Result<ActivatedJobs, Error>> + Send {
+    ) -> impl Stream<Item = Result<ActivatedJobs, Error>> + Send + '_ {
+        let request = tonic::Request::new(jobs_config.into());
         self.gateway_client
-            .activate_jobs(Default::default(), jobs_config.into())
-            .drop_metadata()
-            .compat()
+            .activate_jobs(request)
             .map_err(|e| Error::ActivateJobError(e))
-            .map_ok(|ajr| ActivatedJobs::new(ajr))
+            .map_ok(|ajr| ActivatedJobs::new(ajr.into_inner()))
     }
 
     /// complete a job
     pub fn complete_job(
         &self,
         complete_job: CompleteJob,
-    ) -> impl Future<Output = Result<(), Error>> + Send {
+    ) -> impl Future<Output = Result<(), Error>> + Send + '_ {
+        let request = tonic::Request::new(complete_job.into());
         self.gateway_client
-            .complete_job(Default::default(), complete_job.into())
-            .drop_metadata()
-            .compat()
+            .complete_job(request)
             .map_err(|e| Error::CompleteJobError(e))
             .map_ok(|_| ())
     }
@@ -146,16 +141,15 @@ impl Client {
         job_key: i64,
         retries: i32,
         error_message: String,
-    ) -> impl Future<Output = Result<(), Error>> + Send {
+    ) -> impl Future<Output = Result<(), Error>> + Send + '_ {
         let request_options = Default::default();
         let mut request = gateway::FailJobRequest::default();
-        request.set_jobKey(job_key);
-        request.set_retries(retries);
-        request.set_errorMessage(error_message);
+        request.job_key = job_key;
+        request.retries = retries;
+        request.error_message = error_message;
+        let request = tonic::Request::new(request);
         self.gateway_client
-            .fail_job(request_options, request)
-            .drop_metadata()
-            .compat()
+            .fail_job(request)
             .map_ok(|_| ())
             .map_err(|e| Error::FailJobError(e))
     }
@@ -164,11 +158,10 @@ impl Client {
     pub fn publish_message(
         &self,
         publish_message: PublishMessage,
-    ) -> impl Future<Output = Result<(), Error>> {
+    ) -> impl Future<Output = Result<(), Error>> + '_ {
+        let request = tonic::Request::new(publish_message.into());
         self.gateway_client
-            .publish_message(Default::default(), publish_message.into())
-            .drop_metadata()
-            .compat()
+            .publish_message(request)
             .map_err(|e| Error::PublishMessageError(e))
             .map_ok(|_| ())
     }
@@ -212,7 +205,7 @@ pub struct BrokerInfo {
 impl From<gateway::BrokerInfo> for BrokerInfo {
     fn from(bi: gateway::BrokerInfo) -> Self {
         Self {
-            node_id: bi.nodeId,
+            node_id: bi.node_id,
             host: bi.host,
             port: bi.port,
             partitions: bi.partitions.into_iter().map(From::from).collect(),
@@ -230,7 +223,7 @@ pub struct Partition {
 impl From<gateway::Partition> for Partition {
     fn from(p: gateway::Partition) -> Self {
         Self {
-            partition_id: p.partitionId,
+            partition_id: p.partition_id,
             role: p.role.into(),
         }
     }
@@ -284,10 +277,10 @@ pub struct Workflow {
 impl From<gateway::WorkflowMetadata> for Workflow {
     fn from(wm: gateway::WorkflowMetadata) -> Self {
         Self {
-            bpmn_process_id: wm.bpmnProcessId,
+            bpmn_process_id: wm.bpmn_process_id,
             version: wm.version,
-            workflow_key: wm.workflowKey,
-            resource_name: wm.resourceName,
+            workflow_key: wm.workflow_key,
+            resource_name: wm.resource_name,
         }
     }
 }
@@ -442,9 +435,9 @@ impl CompleteJob {
 impl Into<gateway::CompleteJobRequest> for CompleteJob {
     fn into(self) -> gateway::CompleteJobRequest {
         let mut complete_job_request = gateway::CompleteJobRequest::default();
-        complete_job_request.set_jobKey(self.job_key);
+        complete_job_request.job_key = self.job_key;
         if let Some(variables) = self.variables {
-            complete_job_request.set_variables(variables);
+            complete_job_request.variables = variables;
         }
         complete_job_request
     }
@@ -531,7 +524,7 @@ impl From<gateway::ActivatedJob> for ActivatedJob {
             retries: aj.retries,
             deadline: aj.deadline,
             custom_headers: aj.customHeaders,
-            field_type: aj.field_type,
+            field_type: aj.r#type,
         }
     }
 }
