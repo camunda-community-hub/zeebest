@@ -1,6 +1,6 @@
 pub use crate::gateway;
-use serde::Serialize;
 use crate::Error;
+use serde::Serialize;
 
 /// A message for completing a zeebe job.
 #[derive(Debug)]
@@ -34,4 +34,3 @@ impl Into<gateway::CompleteJobRequest> for CompleteJob {
         complete_job_request
     }
 }
-

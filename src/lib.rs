@@ -13,8 +13,8 @@ extern crate tonic;
 #[macro_use]
 extern crate futures;
 mod client;
-mod worker;
 mod data;
+mod worker;
 
 //pub mod gateway {
 //    include!("../target/proto/build/gateway_protocol.rs");
@@ -25,5 +25,5 @@ pub mod gateway {
 }
 
 pub use client::*;
-pub use worker::*;
 pub use data::client_data::*;
+pub use worker::*;

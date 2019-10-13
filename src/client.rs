@@ -5,12 +5,12 @@ use futures::{ready, StreamExt};
 pub use crate::gateway;
 pub use crate::gateway::client::GatewayClient;
 
-use serde::Serialize;
-use tonic::codegen::{Body, HttpBody, StdError};
-use std::pin::Pin;
+use crate::{ActivateJobs, ActivatedJobs, CompleteJob, CreatedWorkflowInstance, DeployedWorkflows, Topology, WorkflowInstance, PublishMessage};
 use futures::task::Context;
 use futures::Poll;
-use crate::{ActivateJobs, ActivatedJobs, DeployedWorkflows, WorkflowInstance, CreatedWorkflowInstance, Topology};
+use serde::Serialize;
+use std::pin::Pin;
+use tonic::codegen::{Body, HttpBody, StdError};
 
 pub mod grpc {
     type Error = Box<dyn std::error::Error + Sync + Send>;
@@ -95,12 +95,13 @@ impl Client {
         let mut workflow_request_object = gateway::WorkflowRequestObject::default();
         workflow_request_object.name = workflow_name.into();
         workflow_request_object.definition = workflow_definition;
-        workflow_request_object.r#type = gateway::workflow_request_object::ResourceType::Bpmn as i32;
+        workflow_request_object.r#type =
+            gateway::workflow_request_object::ResourceType::Bpmn as i32;
         let mut deploy_workflow_request = gateway::DeployWorkflowRequest::default();
         deploy_workflow_request.workflows = vec![workflow_request_object];
         let request = tonic::Request::new(deploy_workflow_request);
         match self.gateway_client.deploy_workflow(request).await {
-            Ok(dwr) =>  Ok(DeployedWorkflows::new(dwr.into_inner())),
+            Ok(dwr) => Ok(DeployedWorkflows::new(dwr.into_inner())),
             Err(e) => Err(Error::DeployWorkflowError(e)),
         }
     }
@@ -131,49 +132,42 @@ impl Client {
         }
     }
 
-    // complete a job
-    //    pub fn complete_job(
-    //        &mut self,
-    //        complete_job: CompleteJob,
-    //    ) -> impl Future<Output = Result<(), Error>> + Send + '_ {
-    //        let request = tonic::Request::new(complete_job.into());
-    //        self.gateway_client
-    //            .complete_job(request)
-    //            .map_err(|e| Error::CompleteJobError(e))
-    //            .map_ok(|_| ())
-    //    }
+    /// complete a job
+    pub async fn complete_job(&mut self, complete_job: CompleteJob) -> Result<(), Error> {
+        let request = tonic::Request::new(complete_job.into());
+        match self.gateway_client.complete_job(request).await {
+            Ok(_) => Ok(()),
+            Err(e) => Err(Error::CompleteJobError(e)),
+        }
+    }
 
-    // fail a job
-    //    pub fn fail_job(
-    //        &mut self,
-    //        job_key: i64,
-    //        retries: i32,
-    //        error_message: String,
-    //    ) -> impl Future<Output = Result<(), Error>> + Send + '_ {
-    //        let mut request = gateway::FailJobRequest::default();
-    //        request.job_key = job_key;
-    //        request.retries = retries;
-    //        request.error_message = error_message;
-    //        let request = tonic::Request::new(request);
-    //        self.gateway_client
-    //            .fail_job(request)
-    //            .map_ok(|_| ())
-    //            .map_err(|e| Error::FailJobError(e))
-    //    }
+    /// fail a job
+    pub async fn fail_job(
+        &mut self,
+        job_key: i64,
+        retries: i32,
+        error_message: String,
+    ) -> Result<(), Error> {
+        let mut request = gateway::FailJobRequest::default();
+        request.job_key = job_key;
+        request.retries = retries;
+        request.error_message = error_message;
+        let request = tonic::Request::new(request);
+        match self.gateway_client.fail_job(request).await {
+            Ok(_) => Ok(()),
+            Err(e) => Err(Error::FailJobError(e)),
+        }
+    }
 
-    // Publish a message
-    //    pub fn publish_message(
-    //        &mut self,
-    //        publish_message: PublishMessage,
-    //    ) -> impl Future<Output = Result<(), Error>> + '_ {
-    //        let request = tonic::Request::new(publish_message.into());
-    //        self.gateway_client
-    //            .publish_message(request)
-    //            .map_err(|e| Error::PublishMessageError(e))
-    //            .map_ok(|_| ())
-    //    }
+    /// Publish a message
+    pub async fn publish_message(
+        &mut self,
+        publish_message: PublishMessage,
+    ) -> Result<(), Error> {
+        let request = tonic::Request::new(publish_message.into());
+        match self.gateway_client.publish_message(request).await {
+            Ok(_) => Ok(()),
+            Err(e) => Err(Error::PublishMessageError(e)),
+        }
+    }
 }
-
-
-
-

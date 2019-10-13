@@ -1,8 +1,8 @@
+use crate::{ActivatedJob, Client, JobResult};
 use futures::{Future, FutureExt};
 use std::pin::Pin;
 use std::sync::{Arc, RwLock};
 use tonic::codegen::{Body, HttpBody, StdError};
-use crate::{Client, ActivatedJob, JobResult};
 
 pub trait JobStatusReporter {
     fn complete(

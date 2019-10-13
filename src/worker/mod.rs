@@ -6,11 +6,11 @@ use std::sync::{Arc, RwLock};
 mod job_client;
 mod job_handler;
 
+use crate::{ActivateJobs, ActivatedJob, Client};
 pub use job_client::JobClient;
 pub use job_client::Reporter;
 pub use job_handler::JobHandler;
 use tonic::codegen::{Body, HttpBody, StdError};
-use crate::{Client, ActivatedJob, ActivateJobs};
 
 /// An option that describes what the job worker should do if if the job handler panics.
 #[derive(Clone, Copy, Debug, PartialEq, Eq, Hash)]

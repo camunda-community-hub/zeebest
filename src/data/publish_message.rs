@@ -1,6 +1,6 @@
 pub use crate::gateway;
-use serde::Serialize;
 use crate::Error;
+use serde::Serialize;
 
 /// A message for publishing an event on zeebe.
 pub struct PublishMessage {
