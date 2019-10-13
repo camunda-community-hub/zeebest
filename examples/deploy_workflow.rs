@@ -1,7 +1,8 @@
 use futures::executor::block_on;
 use zeebest::Client;
 
-fn main() {
+#[runtime::main]
+async fn main() {
     let client = Client::new("127.0.0.1:26500").unwrap();
 
     let result = client.deploy_bpmn_workflow("simple-process", SIMPLE_PROCESS_XML.into()).await;
