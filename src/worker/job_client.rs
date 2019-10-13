@@ -2,7 +2,7 @@ use crate::{ActivatedJob, Client, JobResult};
 use futures::{Future, FutureExt};
 use std::pin::Pin;
 use std::sync::{Arc, RwLock};
-use tonic::codegen::{Body, HttpBody, StdError};
+
 
 pub trait JobStatusReporter {
     fn complete(
@@ -31,8 +31,8 @@ impl Reporter {
 impl JobStatusReporter for Reporter {
     fn complete(
         &mut self,
-        key: i64,
-        variables: Option<String>,
+        _key: i64,
+        _variables: Option<String>,
     ) -> Pin<Box<dyn Future<Output = Result<(), crate::Error>> + Send + '_>> {
         unimplemented!()
 
@@ -45,9 +45,9 @@ impl JobStatusReporter for Reporter {
 
     fn fail(
         &mut self,
-        key: i64,
-        retries: i32,
-        error_message: Option<String>,
+        _key: i64,
+        _retries: i32,
+        _error_message: Option<String>,
     ) -> Pin<Box<dyn Future<Output = Result<(), crate::Error>> + Send + '_>> {
         unimplemented!()
         //        let error_message = error_message.unwrap_or("".to_string());
@@ -71,10 +71,10 @@ impl JobClient {
     pub fn report_status(
         &mut self,
         activated_job: ActivatedJob,
-        job_result: JobResult,
+        _job_result: JobResult,
     ) -> Pin<Box<dyn Future<Output = Result<(), crate::Error>> + Send + '_>> {
-        let key = activated_job.key;
-        let retries = activated_job.retries;
+        let _key = activated_job.key;
+        let _retries = activated_job.retries;
         futures::future::ok(()).boxed()
         //        match job_result {
         //            JobResult::NoAction => futures::future::ok(()).boxed(),

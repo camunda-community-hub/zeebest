@@ -1,16 +1,16 @@
-use futures::future::{Future, TryFutureExt};
-use futures::stream::Stream;
-use futures::{ready, StreamExt};
+use futures::future::{TryFutureExt};
+
+use futures::{StreamExt};
 
 pub use crate::gateway;
 pub use crate::gateway::client::GatewayClient;
 
 use crate::{ActivateJobs, ActivatedJobs, CompleteJob, CreatedWorkflowInstance, DeployedWorkflows, Topology, WorkflowInstance, PublishMessage};
-use futures::task::Context;
-use futures::Poll;
-use serde::Serialize;
-use std::pin::Pin;
-use tonic::codegen::{Body, HttpBody, StdError};
+
+
+
+
+
 
 pub mod grpc {
     type Error = Box<dyn std::error::Error + Sync + Send>;
@@ -68,7 +68,7 @@ pub struct Client {
 
 impl Client {
     /// Construct a new `Client` that connects to a broker with `host` and `port`.
-    pub fn new(host: &str, port: u16) -> Result<Self, Error> {
+    pub fn new(_host: &str, _port: u16) -> Result<Self, Error> {
         let x = GatewayClient::<tonic::transport::Channel>::connect("localhost:3000");
         let x = x
             .map_err(|e| Error::GatewayError(e))

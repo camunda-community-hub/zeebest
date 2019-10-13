@@ -10,7 +10,7 @@ use crate::{ActivateJobs, ActivatedJob, Client};
 pub use job_client::JobClient;
 pub use job_client::Reporter;
 pub use job_handler::JobHandler;
-use tonic::codegen::{Body, HttpBody, StdError};
+
 
 /// An option that describes what the job worker should do if if the job handler panics.
 #[derive(Clone, Copy, Debug, PartialEq, Eq, Hash)]
@@ -128,13 +128,13 @@ pub struct JobWorker {
 
 impl JobWorker {
     pub fn new<F>(
-        worker: String,
-        job_type: String,
-        timeout: i64,
-        max_amount: u16,
-        panic_option: PanicOption,
-        client: Client,
-        job_handler: F,
+        _worker: String,
+        _job_type: String,
+        _timeout: i64,
+        _max_amount: u16,
+        _panic_option: PanicOption,
+        _client: Client,
+        _job_handler: F,
     ) -> Self
     where
         F: Fn(ActivatedJob) -> Pin<Box<dyn Future<Output = JobResult> + Send>>
