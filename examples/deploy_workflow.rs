@@ -1,4 +1,4 @@
-use futures::executor::block_on;
+
 use zeebest::Client;
 
 #[runtime::main]
