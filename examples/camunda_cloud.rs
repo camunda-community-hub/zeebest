@@ -1,11 +1,11 @@
 #[macro_use]
 extern crate serde_derive;
 
-use tonic::transport::Certificate;
-use std::path::PathBuf;
 use std::fs;
-use tonic::transport::{ Channel, ClientTlsConfig };
+use std::path::PathBuf;
 use tonic::codegen::http::Uri;
+use tonic::transport::Certificate;
+use tonic::transport::{Channel, ClientTlsConfig};
 use zeebest::gateway::client::GatewayClient;
 
 #[derive(Deserialize, Debug)]
@@ -35,7 +35,12 @@ struct AuthzResponse {
 #[tokio::main]
 async fn main() {
     // parse configuration from environment variables
-    let Config { server_url, certificate_path, client_id, client_secret } = envy::from_env().unwrap();
+    let Config {
+        server_url,
+        certificate_path,
+        client_id,
+        client_secret,
+    } = envy::from_env().unwrap();
 
     let domain_name = server_url.split(":").next().unwrap().to_owned();
     let certificate_data = fs::read(certificate_path).unwrap();
@@ -47,34 +52,37 @@ async fn main() {
         client_id: client_id.clone(),
         client_secret: client_secret.clone(),
         audience: domain_name.clone(),
-        grant_type: "client_credentials".to_string()
+        grant_type: "client_credentials".to_string(),
     };
-
-    let response: AuthzResponse = client.post("https://login.cloud.camunda.io/oauth/token/")
+    let AuthzResponse { access_token, .. } = client
+        .post("https://login.cloud.camunda.io/oauth/token/")
         .json(&request_json)
         .send()
-        .await.unwrap()
-        .json().await.unwrap();
+        .await
+        .unwrap()
+        .json()
+        .await
+        .unwrap();
 
+    // build up a grpc channel with our TLS and JWT
     let tls_config = ClientTlsConfig::with_rustls()
         .ca_certificate(certificate)
         .domain_name(domain_name)
         .clone();
-
     let uri = format!("https://{}", server_url).parse::<Uri>().unwrap();
-    println!("uri: {:?}", uri);
-
     let channel = Channel::builder(uri)
         .tls_config(&tls_config)
         .intercept_headers(move |headers| {
-            let value = format!("Bearer {}", response.access_token).parse().unwrap();
-            headers.insert("authorization",value);
+            let value = format!("Bearer {}", access_token).parse().unwrap();
+            headers.insert("authorization", value);
         })
         .channel();
 
+    // create a gateway client
     let mut gateway_client = GatewayClient::new(channel);
-
     let request = tonic::Request::new(zeebest::gateway::TopologyRequest {});
     let result = gateway_client.topology(request).await.unwrap();
+
+    // our topology!
     println!("result: {:?}", result);
 }
