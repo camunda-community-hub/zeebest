@@ -15,10 +15,21 @@ impl ClientBuilder {
         let uri: http::Uri = self.uri.clone().expect("URI is required");
         let mut endpoint = tonic::transport::Channel::builder(uri.clone());
 
-        let domain_name = uri.host().unwrap().to_string();
-        let mut tls_config = ClientTlsConfig::with_rustls().domain_name(domain_name).clone();
-
-        endpoint.tls_config(&mut tls_config);
+        match uri.scheme_str() {
+            Some("http") => {
+            },
+            Some("https") => {
+                let domain_name = uri.host().unwrap().to_string();
+                let mut tls_config = ClientTlsConfig::with_rustls().domain_name(domain_name).clone();
+                endpoint.tls_config(&mut tls_config);
+            },
+            Some(s) => {
+                return Err(Error::InvalidSchemeError(s.to_string()))
+            }
+            None => {
+                return Err(Error::SchemeMissingError)
+            },
+        }
 
         if let Some(provider) = &self.token_provider {
             let token: CloudToken = provider.get_token().await?;

@@ -35,6 +35,10 @@ pub enum Error {
     TonicError(tonic::transport::Error),
     #[fail(display = "Surf Error. {:?}", _0)]
     SurfError(Box<dyn std::error::Error + Send + Sync + 'static>),
+    #[fail(display = "URI Scheme (e.g. HTTPS) is required.")]
+    SchemeMissingError,
+    #[fail(display = "Invalid URI Scheme supplied: {:?}", _0)]
+    InvalidSchemeError(String),
 }
 
 impl From<std::io::Error> for Error {

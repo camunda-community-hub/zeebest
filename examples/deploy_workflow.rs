@@ -1,11 +1,19 @@
-
-use zeebest::Client;
-
-#[runtime::main]
+#[tokio::main]
 async fn main() {
-    let client = Client::new("127.0.0.1:26500").unwrap();
+    let uri: http::Uri = "http://127.0.0.1:26500"
+        .parse::<http::Uri>()
+        .unwrap();
 
-    let result = client.deploy_bpmn_workflow("simple-process", SIMPLE_PROCESS_XML.into()).await;
+    let client: zeebest::Client = zeebest::Client::builder()
+        .uri(uri)
+        .connect()
+        .await
+        .unwrap();
+
+    let result = client
+        .deploy_bpmn_workflow("simple-process", SIMPLE_PROCESS_XML.into())
+        .await
+        .unwrap();
 
     println!("deploy workflow result: {:?}", result);
 }
