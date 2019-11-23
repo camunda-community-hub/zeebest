@@ -1,6 +1,6 @@
 #[macro_use]
 extern crate serde_derive;
-use zeebest::{Client, PublishMessage};
+use zeebest::{PublishMessage};
 
 #[derive(Serialize)]
 struct Payment {

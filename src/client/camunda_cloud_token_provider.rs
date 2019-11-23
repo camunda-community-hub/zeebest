@@ -83,21 +83,7 @@ impl CamundaCloudTokenProvider {
         let request = surf::post("https://login.cloud.camunda.io/oauth/token")
             .body_json(&self.access_request)?;
         let result: AccessResponse = request.recv_json().await?;
-//        let result: AccessResponse = request.await
-//            .recv_json().await?;
-
-        unimplemented!()
-
-//        let response = reqwest::Client::new()
-//            .post("https://login.cloud.camunda.io/oauth/token")
-//            .json(&self.access_request)
-//            .send()
-//            .await?;
-//        let json = response
-//            .json()
-//            .await
-//            .map_err(|e| Error::ReqwestError(e));
-//        json
+        Ok(result)
     }
 
     fn response_to_cloud_token(&self, access_response: AccessResponse) -> Result<CloudToken, Error> {

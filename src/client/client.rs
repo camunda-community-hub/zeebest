@@ -3,12 +3,12 @@ use crate::{
     ActivateJobs, ActivatedJobs, CompleteJob, CreatedWorkflowInstance, DeployedWorkflows, Error,
     PublishMessage, Topology, WorkflowInstance,
 };
-use futures::lock::Mutex;
-use std::sync::Arc;
-use tonic::codegen::http;
-use tonic::transport::{ClientTlsConfig, Channel};
 
-use async_std::task;
+use std::sync::Arc;
+
+
+
+
 use crate::client::client_builder::ClientBuilder;
 use async_std::sync::RwLock;
 
