@@ -21,12 +21,8 @@ mod client;
 mod data;
 mod worker;
 
-//pub mod gateway {
-//    include!("../target/proto/build/gateway_protocol.rs");
-//}
-mod proto;
 pub mod gateway {
-    pub use crate::proto::gateway_protocol::*;
+    tonic::include_proto!("gateway_protocol");
 }
 
 pub use client::*;
