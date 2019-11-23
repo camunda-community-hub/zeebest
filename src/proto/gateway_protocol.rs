@@ -332,12 +332,13 @@ pub mod client {
     }
     impl GatewayClient<tonic::transport::Channel> {
         #[doc = r" Attempt to create a new client by connecting to a given endpoint."]
-        pub fn connect<D>(dst: D) -> Result<Self, tonic::transport::Error>
+        pub async fn connect<D>(dst: D) -> Result<Self, tonic::transport::Error>
         where
             D: std::convert::TryInto<tonic::transport::Endpoint>,
             D::Error: Into<StdError>,
         {
-            tonic::transport::Endpoint::new(dst).map(|c| Self::new(c.channel()))
+            let conn = tonic::transport::Endpoint::new(dst)?.connect().await?;
+            Ok(Self::new(conn))
         }
     }
     impl<T> GatewayClient<T>
@@ -364,7 +365,6 @@ pub mod client {
         #[doc = ""]
         #[doc = "Iterates through all known partitions round-robin and activates up to the requested"]
         #[doc = "maximum and streams them back to the client as they are activated."]
-        #[doc = ""]
         #[doc = "Errors:"]
         #[doc = "INVALID_ARGUMENT:"]
         #[doc = "- type is blank (empty string, null)"]
@@ -373,54 +373,53 @@ pub mod client {
         #[doc = "- maxJobsToActivate is less than 1"]
         pub async fn activate_jobs(
             &mut self,
-            request: tonic::Request<super::ActivateJobsRequest>,
+            request: impl tonic::IntoRequest<super::ActivateJobsRequest>,
         ) -> Result<
             tonic::Response<tonic::codec::Streaming<super::ActivateJobsResponse>>,
             tonic::Status,
         > {
             self.ready().await?;
-            let codec = tonic::codec::ProstCodec::new();
+            let codec = tonic::codec::ProstCodec::default();
             let path =
                 http::uri::PathAndQuery::from_static("/gateway_protocol.Gateway/ActivateJobs");
-            self.inner.server_streaming(request, path, codec).await
+            self.inner
+                .server_streaming(request.into_request(), path, codec)
+                .await
         }
         #[doc = ""]
         #[doc = "Cancels a running workflow instance"]
-        #[doc = ""]
         #[doc = "Errors:"]
         #[doc = "NOT_FOUND:"]
         #[doc = "- no workflow instance exists with the given key"]
         pub async fn cancel_workflow_instance(
             &mut self,
-            request: tonic::Request<super::CancelWorkflowInstanceRequest>,
+            request: impl tonic::IntoRequest<super::CancelWorkflowInstanceRequest>,
         ) -> Result<tonic::Response<super::CancelWorkflowInstanceResponse>, tonic::Status> {
             self.ready().await?;
-            let codec = tonic::codec::ProstCodec::new();
+            let codec = tonic::codec::ProstCodec::default();
             let path = http::uri::PathAndQuery::from_static(
                 "/gateway_protocol.Gateway/CancelWorkflowInstance",
             );
-            self.inner.unary(request, path, codec).await
+            self.inner.unary(request.into_request(), path, codec).await
         }
         #[doc = ""]
         #[doc = "Completes a job with the given variables, which allows completing the associated service task."]
-        #[doc = ""]
         #[doc = "Errors:"]
         #[doc = "NOT_FOUND:"]
         #[doc = "- no job exists with the given job key. Note that since jobs are removed once completed,"]
         #[doc = "it could be that this job did exist at some point."]
-        #[doc = ""]
         #[doc = "FAILED_PRECONDITION:"]
         #[doc = "- the job was marked as failed. In that case, the related incident must be resolved before"]
         #[doc = "the job can be activated again and completed."]
         pub async fn complete_job(
             &mut self,
-            request: tonic::Request<super::CompleteJobRequest>,
+            request: impl tonic::IntoRequest<super::CompleteJobRequest>,
         ) -> Result<tonic::Response<super::CompleteJobResponse>, tonic::Status> {
             self.ready().await?;
-            let codec = tonic::codec::ProstCodec::new();
+            let codec = tonic::codec::ProstCodec::default();
             let path =
                 http::uri::PathAndQuery::from_static("/gateway_protocol.Gateway/CompleteJob");
-            self.inner.unary(request, path, codec).await
+            self.inner.unary(request.into_request(), path, codec).await
         }
         #[doc = ""]
         #[doc = "Creates and starts an instance of the specified workflow. The workflow definition to use to"]
@@ -428,35 +427,31 @@ pub mod client {
         #[doc = "DeployWorkflow), or using the BPMN process ID and a version. Pass -1 as the version to use the"]
         #[doc = "latest deployed version. Note that only workflows with none start events can be started through"]
         #[doc = "this command."]
-        #[doc = ""]
         #[doc = "Errors:"]
         #[doc = "NOT_FOUND:"]
         #[doc = "- no workflow with the given key exists (if workflowKey was given)"]
         #[doc = "- no workflow with the given process ID exists (if bpmnProcessId was given but version was -1)"]
         #[doc = "- no workflow with the given process ID and version exists (if both bpmnProcessId and version were given)"]
-        #[doc = ""]
         #[doc = "FAILED_PRECONDITION:"]
         #[doc = "- the workflow definition does not contain a none start event; only workflows with none"]
         #[doc = "start event can be started manually."]
-        #[doc = ""]
         #[doc = "INVALID_ARGUMENT:"]
         #[doc = "- the given variables argument is not a valid JSON document; it is expected to be a valid"]
         #[doc = "JSON document where the root node is an object."]
         pub async fn create_workflow_instance(
             &mut self,
-            request: tonic::Request<super::CreateWorkflowInstanceRequest>,
+            request: impl tonic::IntoRequest<super::CreateWorkflowInstanceRequest>,
         ) -> Result<tonic::Response<super::CreateWorkflowInstanceResponse>, tonic::Status> {
             self.ready().await?;
-            let codec = tonic::codec::ProstCodec::new();
+            let codec = tonic::codec::ProstCodec::default();
             let path = http::uri::PathAndQuery::from_static(
                 "/gateway_protocol.Gateway/CreateWorkflowInstance",
             );
-            self.inner.unary(request, path, codec).await
+            self.inner.unary(request.into_request(), path, codec).await
         }
         #[doc = ""]
         #[doc = "Deploys one or more workflows to Zeebe. Note that this is an atomic call,"]
         #[doc = "i.e. either all workflows are deployed, or none of them are."]
-        #[doc = ""]
         #[doc = "Errors:"]
         #[doc = "INVALID_ARGUMENT:"]
         #[doc = "- no resources given."]
@@ -466,75 +461,70 @@ pub mod client {
         #[doc = "- the workflow is invalid (e.g. an event-based gateway has an outgoing sequence flow to a task)"]
         pub async fn deploy_workflow(
             &mut self,
-            request: tonic::Request<super::DeployWorkflowRequest>,
+            request: impl tonic::IntoRequest<super::DeployWorkflowRequest>,
         ) -> Result<tonic::Response<super::DeployWorkflowResponse>, tonic::Status> {
             self.ready().await?;
-            let codec = tonic::codec::ProstCodec::new();
+            let codec = tonic::codec::ProstCodec::default();
             let path =
                 http::uri::PathAndQuery::from_static("/gateway_protocol.Gateway/DeployWorkflow");
-            self.inner.unary(request, path, codec).await
+            self.inner.unary(request.into_request(), path, codec).await
         }
         #[doc = ""]
         #[doc = "Marks the job as failed; if the retries argument is positive, then the job will be immediately"]
         #[doc = "activatable again, and a worker could try again to process it. If it is zero or negative however,"]
         #[doc = "an incident will be raised, tagged with the given errorMessage, and the job will not be"]
         #[doc = "activatable until the incident is resolved."]
-        #[doc = ""]
         #[doc = "Errors:"]
         #[doc = "NOT_FOUND:"]
         #[doc = "- no job was found with the given key"]
-        #[doc = ""]
         #[doc = "FAILED_PRECONDITION:"]
         #[doc = "- the job was not activated"]
         #[doc = "- the job is already in a failed state, i.e. ran out of retries"]
         pub async fn fail_job(
             &mut self,
-            request: tonic::Request<super::FailJobRequest>,
+            request: impl tonic::IntoRequest<super::FailJobRequest>,
         ) -> Result<tonic::Response<super::FailJobResponse>, tonic::Status> {
             self.ready().await?;
-            let codec = tonic::codec::ProstCodec::new();
+            let codec = tonic::codec::ProstCodec::default();
             let path = http::uri::PathAndQuery::from_static("/gateway_protocol.Gateway/FailJob");
-            self.inner.unary(request, path, codec).await
+            self.inner.unary(request.into_request(), path, codec).await
         }
         #[doc = ""]
         #[doc = "Publishes a single message. Messages are published to specific partitions computed from their"]
         #[doc = "correlation keys."]
-        #[doc = ""]
         #[doc = "Errors:"]
         #[doc = "ALREADY_EXISTS:"]
         #[doc = "- a message with the same ID was previously published (and is still alive)"]
         pub async fn publish_message(
             &mut self,
-            request: tonic::Request<super::PublishMessageRequest>,
+            request: impl tonic::IntoRequest<super::PublishMessageRequest>,
         ) -> Result<tonic::Response<super::PublishMessageResponse>, tonic::Status> {
             self.ready().await?;
-            let codec = tonic::codec::ProstCodec::new();
+            let codec = tonic::codec::ProstCodec::default();
             let path =
                 http::uri::PathAndQuery::from_static("/gateway_protocol.Gateway/PublishMessage");
-            self.inner.unary(request, path, codec).await
+            self.inner.unary(request.into_request(), path, codec).await
         }
         #[doc = ""]
         #[doc = "Resolves a given incident. This simply marks the incident as resolved; most likely a call to"]
         #[doc = "UpdateJobRetries or SetVariables will be necessary to actually resolve the"]
         #[doc = "problem, following by this call."]
-        #[doc = ""]
         #[doc = "Errors:"]
         #[doc = "NOT_FOUND:"]
         #[doc = "- no incident with the given key exists"]
         pub async fn resolve_incident(
             &mut self,
-            request: tonic::Request<super::ResolveIncidentRequest>,
+            request: impl tonic::IntoRequest<super::ResolveIncidentRequest>,
         ) -> Result<tonic::Response<super::ResolveIncidentResponse>, tonic::Status> {
             self.ready().await?;
-            let codec = tonic::codec::ProstCodec::new();
+            let codec = tonic::codec::ProstCodec::default();
             let path =
                 http::uri::PathAndQuery::from_static("/gateway_protocol.Gateway/ResolveIncident");
-            self.inner.unary(request, path, codec).await
+            self.inner.unary(request.into_request(), path, codec).await
         }
         #[doc = ""]
         #[doc = "Updates all the variables of a particular scope (e.g. workflow instance, flow element instance)"]
         #[doc = "from the given JSON document."]
-        #[doc = ""]
         #[doc = "Errors:"]
         #[doc = "NOT_FOUND:"]
         #[doc = "- no element with the given elementInstanceKey exists"]
@@ -543,44 +533,42 @@ pub mod client {
         #[doc = "be JSON documents where the root node is an object."]
         pub async fn set_variables(
             &mut self,
-            request: tonic::Request<super::SetVariablesRequest>,
+            request: impl tonic::IntoRequest<super::SetVariablesRequest>,
         ) -> Result<tonic::Response<super::SetVariablesResponse>, tonic::Status> {
             self.ready().await?;
-            let codec = tonic::codec::ProstCodec::new();
+            let codec = tonic::codec::ProstCodec::default();
             let path =
                 http::uri::PathAndQuery::from_static("/gateway_protocol.Gateway/SetVariables");
-            self.inner.unary(request, path, codec).await
+            self.inner.unary(request.into_request(), path, codec).await
         }
         #[doc = ""]
         #[doc = "Obtains the current topology of the cluster the gateway is part of."]
         pub async fn topology(
             &mut self,
-            request: tonic::Request<super::TopologyRequest>,
+            request: impl tonic::IntoRequest<super::TopologyRequest>,
         ) -> Result<tonic::Response<super::TopologyResponse>, tonic::Status> {
             self.ready().await?;
-            let codec = tonic::codec::ProstCodec::new();
+            let codec = tonic::codec::ProstCodec::default();
             let path = http::uri::PathAndQuery::from_static("/gateway_protocol.Gateway/Topology");
-            self.inner.unary(request, path, codec).await
+            self.inner.unary(request.into_request(), path, codec).await
         }
         #[doc = ""]
         #[doc = "Updates the number of retries a job has left. This is mostly useful for jobs that have run out of"]
         #[doc = "retries, should the underlying problem be solved."]
-        #[doc = ""]
         #[doc = "Errors:"]
         #[doc = "NOT_FOUND:"]
         #[doc = "- no job exists with the given key"]
-        #[doc = ""]
         #[doc = "INVALID_ARGUMENT:"]
         #[doc = "- retries is not greater than 0"]
         pub async fn update_job_retries(
             &mut self,
-            request: tonic::Request<super::UpdateJobRetriesRequest>,
+            request: impl tonic::IntoRequest<super::UpdateJobRetriesRequest>,
         ) -> Result<tonic::Response<super::UpdateJobRetriesResponse>, tonic::Status> {
             self.ready().await?;
-            let codec = tonic::codec::ProstCodec::new();
+            let codec = tonic::codec::ProstCodec::default();
             let path =
                 http::uri::PathAndQuery::from_static("/gateway_protocol.Gateway/UpdateJobRetries");
-            self.inner.unary(request, path, codec).await
+            self.inner.unary(request.into_request(), path, codec).await
         }
     }
     impl<T: Clone> Clone for GatewayClient<T> {
@@ -601,11 +589,11 @@ pub mod server {
         #[doc = "Server streaming response type for the ActivateJobs method."]
         type ActivateJobsStream: Stream<Item = Result<super::ActivateJobsResponse, tonic::Status>>
             + Send
+            + Sync
             + 'static;
         #[doc = ""]
         #[doc = "Iterates through all known partitions round-robin and activates up to the requested"]
         #[doc = "maximum and streams them back to the client as they are activated."]
-        #[doc = ""]
         #[doc = "Errors:"]
         #[doc = "INVALID_ARGUMENT:"]
         #[doc = "- type is blank (empty string, null)"]
@@ -620,7 +608,6 @@ pub mod server {
         }
         #[doc = ""]
         #[doc = "Cancels a running workflow instance"]
-        #[doc = ""]
         #[doc = "Errors:"]
         #[doc = "NOT_FOUND:"]
         #[doc = "- no workflow instance exists with the given key"]
@@ -632,12 +619,10 @@ pub mod server {
         }
         #[doc = ""]
         #[doc = "Completes a job with the given variables, which allows completing the associated service task."]
-        #[doc = ""]
         #[doc = "Errors:"]
         #[doc = "NOT_FOUND:"]
         #[doc = "- no job exists with the given job key. Note that since jobs are removed once completed,"]
         #[doc = "it could be that this job did exist at some point."]
-        #[doc = ""]
         #[doc = "FAILED_PRECONDITION:"]
         #[doc = "- the job was marked as failed. In that case, the related incident must be resolved before"]
         #[doc = "the job can be activated again and completed."]
@@ -653,17 +638,14 @@ pub mod server {
         #[doc = "DeployWorkflow), or using the BPMN process ID and a version. Pass -1 as the version to use the"]
         #[doc = "latest deployed version. Note that only workflows with none start events can be started through"]
         #[doc = "this command."]
-        #[doc = ""]
         #[doc = "Errors:"]
         #[doc = "NOT_FOUND:"]
         #[doc = "- no workflow with the given key exists (if workflowKey was given)"]
         #[doc = "- no workflow with the given process ID exists (if bpmnProcessId was given but version was -1)"]
         #[doc = "- no workflow with the given process ID and version exists (if both bpmnProcessId and version were given)"]
-        #[doc = ""]
         #[doc = "FAILED_PRECONDITION:"]
         #[doc = "- the workflow definition does not contain a none start event; only workflows with none"]
         #[doc = "start event can be started manually."]
-        #[doc = ""]
         #[doc = "INVALID_ARGUMENT:"]
         #[doc = "- the given variables argument is not a valid JSON document; it is expected to be a valid"]
         #[doc = "JSON document where the root node is an object."]
@@ -676,7 +658,6 @@ pub mod server {
         #[doc = ""]
         #[doc = "Deploys one or more workflows to Zeebe. Note that this is an atomic call,"]
         #[doc = "i.e. either all workflows are deployed, or none of them are."]
-        #[doc = ""]
         #[doc = "Errors:"]
         #[doc = "INVALID_ARGUMENT:"]
         #[doc = "- no resources given."]
@@ -695,11 +676,9 @@ pub mod server {
         #[doc = "activatable again, and a worker could try again to process it. If it is zero or negative however,"]
         #[doc = "an incident will be raised, tagged with the given errorMessage, and the job will not be"]
         #[doc = "activatable until the incident is resolved."]
-        #[doc = ""]
         #[doc = "Errors:"]
         #[doc = "NOT_FOUND:"]
         #[doc = "- no job was found with the given key"]
-        #[doc = ""]
         #[doc = "FAILED_PRECONDITION:"]
         #[doc = "- the job was not activated"]
         #[doc = "- the job is already in a failed state, i.e. ran out of retries"]
@@ -712,7 +691,6 @@ pub mod server {
         #[doc = ""]
         #[doc = "Publishes a single message. Messages are published to specific partitions computed from their"]
         #[doc = "correlation keys."]
-        #[doc = ""]
         #[doc = "Errors:"]
         #[doc = "ALREADY_EXISTS:"]
         #[doc = "- a message with the same ID was previously published (and is still alive)"]
@@ -726,7 +704,6 @@ pub mod server {
         #[doc = "Resolves a given incident. This simply marks the incident as resolved; most likely a call to"]
         #[doc = "UpdateJobRetries or SetVariables will be necessary to actually resolve the"]
         #[doc = "problem, following by this call."]
-        #[doc = ""]
         #[doc = "Errors:"]
         #[doc = "NOT_FOUND:"]
         #[doc = "- no incident with the given key exists"]
@@ -739,7 +716,6 @@ pub mod server {
         #[doc = ""]
         #[doc = "Updates all the variables of a particular scope (e.g. workflow instance, flow element instance)"]
         #[doc = "from the given JSON document."]
-        #[doc = ""]
         #[doc = "Errors:"]
         #[doc = "NOT_FOUND:"]
         #[doc = "- no element with the given elementInstanceKey exists"]
@@ -763,11 +739,9 @@ pub mod server {
         #[doc = ""]
         #[doc = "Updates the number of retries a job has left. This is mostly useful for jobs that have run out of"]
         #[doc = "retries, should the underlying problem be solved."]
-        #[doc = ""]
         #[doc = "Errors:"]
         #[doc = "NOT_FOUND:"]
         #[doc = "- no job exists with the given key"]
-        #[doc = ""]
         #[doc = "INVALID_ARGUMENT:"]
         #[doc = "- retries is not greater than 0"]
         async fn update_job_retries(
@@ -777,42 +751,18 @@ pub mod server {
             Err(tonic::Status::unimplemented("Not yet implemented"))
         }
     }
-    #[derive(Clone, Debug)]
+    #[derive(Debug)]
+    #[doc(hidden)]
     pub struct GatewayServer<T: Gateway> {
         inner: Arc<T>,
     }
-    #[derive(Clone, Debug)]
-    #[doc(hidden)]
-    pub struct GatewayServerSvc<T: Gateway> {
-        inner: Arc<T>,
-    }
     impl<T: Gateway> GatewayServer<T> {
-        #[doc = "Create a new GatewayServer from a type that implements Gateway."]
         pub fn new(inner: T) -> Self {
             let inner = Arc::new(inner);
-            Self::from_shared(inner)
-        }
-        pub fn from_shared(inner: Arc<T>) -> Self {
             Self { inner }
         }
     }
-    impl<T: Gateway> GatewayServerSvc<T> {
-        pub fn new(inner: Arc<T>) -> Self {
-            Self { inner }
-        }
-    }
-    impl<T: Gateway, R> Service<R> for GatewayServer<T> {
-        type Response = GatewayServerSvc<T>;
-        type Error = Never;
-        type Future = Ready<Result<Self::Response, Self::Error>>;
-        fn poll_ready(&mut self, _cx: &mut Context<'_>) -> Poll<Result<(), Self::Error>> {
-            Poll::Ready(Ok(()))
-        }
-        fn call(&mut self, _: R) -> Self::Future {
-            ok(GatewayServerSvc::new(self.inner.clone()))
-        }
-    }
-    impl<T: Gateway> Service<http::Request<HyperBody>> for GatewayServerSvc<T> {
+    impl<T: Gateway> Service<http::Request<HyperBody>> for GatewayServer<T> {
         type Response = http::Response<tonic::body::BoxBody>;
         type Error = Never;
         type Future = BoxFuture<Self::Response, Self::Error>;
@@ -823,10 +773,10 @@ pub mod server {
             let inner = self.inner.clone();
             match req.uri().path() {
                 "/gateway_protocol.Gateway/ActivateJobs" => {
-                    struct ActivateJobs<T: Gateway>(pub Arc<T>);
+                    struct ActivateJobsSvc<T: Gateway>(pub Arc<T>);
                     impl<T: Gateway>
                         tonic::server::ServerStreamingService<super::ActivateJobsRequest>
-                        for ActivateJobs<T>
+                        for ActivateJobsSvc<T>
                     {
                         type Response = super::ActivateJobsResponse;
                         type ResponseStream = T::ActivateJobsStream;
@@ -843,8 +793,8 @@ pub mod server {
                     }
                     let inner = self.inner.clone();
                     let fut = async move {
-                        let method = ActivateJobs(inner);
-                        let codec = tonic::codec::ProstCodec::new();
+                        let method = ActivateJobsSvc(inner);
+                        let codec = tonic::codec::ProstCodec::default();
                         let mut grpc = tonic::server::Grpc::new(codec);
                         let res = grpc.server_streaming(method, req).await;
                         Ok(res)
@@ -852,10 +802,10 @@ pub mod server {
                     Box::pin(fut)
                 }
                 "/gateway_protocol.Gateway/CancelWorkflowInstance" => {
-                    struct CancelWorkflowInstance<T: Gateway>(pub Arc<T>);
+                    struct CancelWorkflowInstanceSvc<T: Gateway>(pub Arc<T>);
                     impl<T: Gateway>
                         tonic::server::UnaryService<super::CancelWorkflowInstanceRequest>
-                        for CancelWorkflowInstance<T>
+                        for CancelWorkflowInstanceSvc<T>
                     {
                         type Response = super::CancelWorkflowInstanceResponse;
                         type Future = BoxFuture<tonic::Response<Self::Response>, tonic::Status>;
@@ -870,8 +820,8 @@ pub mod server {
                     }
                     let inner = self.inner.clone();
                     let fut = async move {
-                        let method = CancelWorkflowInstance(inner);
-                        let codec = tonic::codec::ProstCodec::new();
+                        let method = CancelWorkflowInstanceSvc(inner);
+                        let codec = tonic::codec::ProstCodec::default();
                         let mut grpc = tonic::server::Grpc::new(codec);
                         let res = grpc.unary(method, req).await;
                         Ok(res)
@@ -879,8 +829,8 @@ pub mod server {
                     Box::pin(fut)
                 }
                 "/gateway_protocol.Gateway/CompleteJob" => {
-                    struct CompleteJob<T: Gateway>(pub Arc<T>);
-                    impl<T: Gateway> tonic::server::UnaryService<super::CompleteJobRequest> for CompleteJob<T> {
+                    struct CompleteJobSvc<T: Gateway>(pub Arc<T>);
+                    impl<T: Gateway> tonic::server::UnaryService<super::CompleteJobRequest> for CompleteJobSvc<T> {
                         type Response = super::CompleteJobResponse;
                         type Future = BoxFuture<tonic::Response<Self::Response>, tonic::Status>;
                         fn call(
@@ -894,8 +844,8 @@ pub mod server {
                     }
                     let inner = self.inner.clone();
                     let fut = async move {
-                        let method = CompleteJob(inner);
-                        let codec = tonic::codec::ProstCodec::new();
+                        let method = CompleteJobSvc(inner);
+                        let codec = tonic::codec::ProstCodec::default();
                         let mut grpc = tonic::server::Grpc::new(codec);
                         let res = grpc.unary(method, req).await;
                         Ok(res)
@@ -903,10 +853,10 @@ pub mod server {
                     Box::pin(fut)
                 }
                 "/gateway_protocol.Gateway/CreateWorkflowInstance" => {
-                    struct CreateWorkflowInstance<T: Gateway>(pub Arc<T>);
+                    struct CreateWorkflowInstanceSvc<T: Gateway>(pub Arc<T>);
                     impl<T: Gateway>
                         tonic::server::UnaryService<super::CreateWorkflowInstanceRequest>
-                        for CreateWorkflowInstance<T>
+                        for CreateWorkflowInstanceSvc<T>
                     {
                         type Response = super::CreateWorkflowInstanceResponse;
                         type Future = BoxFuture<tonic::Response<Self::Response>, tonic::Status>;
@@ -921,8 +871,8 @@ pub mod server {
                     }
                     let inner = self.inner.clone();
                     let fut = async move {
-                        let method = CreateWorkflowInstance(inner);
-                        let codec = tonic::codec::ProstCodec::new();
+                        let method = CreateWorkflowInstanceSvc(inner);
+                        let codec = tonic::codec::ProstCodec::default();
                         let mut grpc = tonic::server::Grpc::new(codec);
                         let res = grpc.unary(method, req).await;
                         Ok(res)
@@ -930,8 +880,10 @@ pub mod server {
                     Box::pin(fut)
                 }
                 "/gateway_protocol.Gateway/DeployWorkflow" => {
-                    struct DeployWorkflow<T: Gateway>(pub Arc<T>);
-                    impl<T: Gateway> tonic::server::UnaryService<super::DeployWorkflowRequest> for DeployWorkflow<T> {
+                    struct DeployWorkflowSvc<T: Gateway>(pub Arc<T>);
+                    impl<T: Gateway> tonic::server::UnaryService<super::DeployWorkflowRequest>
+                        for DeployWorkflowSvc<T>
+                    {
                         type Response = super::DeployWorkflowResponse;
                         type Future = BoxFuture<tonic::Response<Self::Response>, tonic::Status>;
                         fn call(
@@ -945,8 +897,8 @@ pub mod server {
                     }
                     let inner = self.inner.clone();
                     let fut = async move {
-                        let method = DeployWorkflow(inner);
-                        let codec = tonic::codec::ProstCodec::new();
+                        let method = DeployWorkflowSvc(inner);
+                        let codec = tonic::codec::ProstCodec::default();
                         let mut grpc = tonic::server::Grpc::new(codec);
                         let res = grpc.unary(method, req).await;
                         Ok(res)
@@ -954,8 +906,8 @@ pub mod server {
                     Box::pin(fut)
                 }
                 "/gateway_protocol.Gateway/FailJob" => {
-                    struct FailJob<T: Gateway>(pub Arc<T>);
-                    impl<T: Gateway> tonic::server::UnaryService<super::FailJobRequest> for FailJob<T> {
+                    struct FailJobSvc<T: Gateway>(pub Arc<T>);
+                    impl<T: Gateway> tonic::server::UnaryService<super::FailJobRequest> for FailJobSvc<T> {
                         type Response = super::FailJobResponse;
                         type Future = BoxFuture<tonic::Response<Self::Response>, tonic::Status>;
                         fn call(
@@ -969,8 +921,8 @@ pub mod server {
                     }
                     let inner = self.inner.clone();
                     let fut = async move {
-                        let method = FailJob(inner);
-                        let codec = tonic::codec::ProstCodec::new();
+                        let method = FailJobSvc(inner);
+                        let codec = tonic::codec::ProstCodec::default();
                         let mut grpc = tonic::server::Grpc::new(codec);
                         let res = grpc.unary(method, req).await;
                         Ok(res)
@@ -978,8 +930,10 @@ pub mod server {
                     Box::pin(fut)
                 }
                 "/gateway_protocol.Gateway/PublishMessage" => {
-                    struct PublishMessage<T: Gateway>(pub Arc<T>);
-                    impl<T: Gateway> tonic::server::UnaryService<super::PublishMessageRequest> for PublishMessage<T> {
+                    struct PublishMessageSvc<T: Gateway>(pub Arc<T>);
+                    impl<T: Gateway> tonic::server::UnaryService<super::PublishMessageRequest>
+                        for PublishMessageSvc<T>
+                    {
                         type Response = super::PublishMessageResponse;
                         type Future = BoxFuture<tonic::Response<Self::Response>, tonic::Status>;
                         fn call(
@@ -993,8 +947,8 @@ pub mod server {
                     }
                     let inner = self.inner.clone();
                     let fut = async move {
-                        let method = PublishMessage(inner);
-                        let codec = tonic::codec::ProstCodec::new();
+                        let method = PublishMessageSvc(inner);
+                        let codec = tonic::codec::ProstCodec::default();
                         let mut grpc = tonic::server::Grpc::new(codec);
                         let res = grpc.unary(method, req).await;
                         Ok(res)
@@ -1002,8 +956,10 @@ pub mod server {
                     Box::pin(fut)
                 }
                 "/gateway_protocol.Gateway/ResolveIncident" => {
-                    struct ResolveIncident<T: Gateway>(pub Arc<T>);
-                    impl<T: Gateway> tonic::server::UnaryService<super::ResolveIncidentRequest> for ResolveIncident<T> {
+                    struct ResolveIncidentSvc<T: Gateway>(pub Arc<T>);
+                    impl<T: Gateway> tonic::server::UnaryService<super::ResolveIncidentRequest>
+                        for ResolveIncidentSvc<T>
+                    {
                         type Response = super::ResolveIncidentResponse;
                         type Future = BoxFuture<tonic::Response<Self::Response>, tonic::Status>;
                         fn call(
@@ -1017,8 +973,8 @@ pub mod server {
                     }
                     let inner = self.inner.clone();
                     let fut = async move {
-                        let method = ResolveIncident(inner);
-                        let codec = tonic::codec::ProstCodec::new();
+                        let method = ResolveIncidentSvc(inner);
+                        let codec = tonic::codec::ProstCodec::default();
                         let mut grpc = tonic::server::Grpc::new(codec);
                         let res = grpc.unary(method, req).await;
                         Ok(res)
@@ -1026,8 +982,8 @@ pub mod server {
                     Box::pin(fut)
                 }
                 "/gateway_protocol.Gateway/SetVariables" => {
-                    struct SetVariables<T: Gateway>(pub Arc<T>);
-                    impl<T: Gateway> tonic::server::UnaryService<super::SetVariablesRequest> for SetVariables<T> {
+                    struct SetVariablesSvc<T: Gateway>(pub Arc<T>);
+                    impl<T: Gateway> tonic::server::UnaryService<super::SetVariablesRequest> for SetVariablesSvc<T> {
                         type Response = super::SetVariablesResponse;
                         type Future = BoxFuture<tonic::Response<Self::Response>, tonic::Status>;
                         fn call(
@@ -1041,8 +997,8 @@ pub mod server {
                     }
                     let inner = self.inner.clone();
                     let fut = async move {
-                        let method = SetVariables(inner);
-                        let codec = tonic::codec::ProstCodec::new();
+                        let method = SetVariablesSvc(inner);
+                        let codec = tonic::codec::ProstCodec::default();
                         let mut grpc = tonic::server::Grpc::new(codec);
                         let res = grpc.unary(method, req).await;
                         Ok(res)
@@ -1050,8 +1006,8 @@ pub mod server {
                     Box::pin(fut)
                 }
                 "/gateway_protocol.Gateway/Topology" => {
-                    struct Topology<T: Gateway>(pub Arc<T>);
-                    impl<T: Gateway> tonic::server::UnaryService<super::TopologyRequest> for Topology<T> {
+                    struct TopologySvc<T: Gateway>(pub Arc<T>);
+                    impl<T: Gateway> tonic::server::UnaryService<super::TopologyRequest> for TopologySvc<T> {
                         type Response = super::TopologyResponse;
                         type Future = BoxFuture<tonic::Response<Self::Response>, tonic::Status>;
                         fn call(
@@ -1065,8 +1021,8 @@ pub mod server {
                     }
                     let inner = self.inner.clone();
                     let fut = async move {
-                        let method = Topology(inner);
-                        let codec = tonic::codec::ProstCodec::new();
+                        let method = TopologySvc(inner);
+                        let codec = tonic::codec::ProstCodec::default();
                         let mut grpc = tonic::server::Grpc::new(codec);
                         let res = grpc.unary(method, req).await;
                         Ok(res)
@@ -1074,9 +1030,9 @@ pub mod server {
                     Box::pin(fut)
                 }
                 "/gateway_protocol.Gateway/UpdateJobRetries" => {
-                    struct UpdateJobRetries<T: Gateway>(pub Arc<T>);
+                    struct UpdateJobRetriesSvc<T: Gateway>(pub Arc<T>);
                     impl<T: Gateway> tonic::server::UnaryService<super::UpdateJobRetriesRequest>
-                        for UpdateJobRetries<T>
+                        for UpdateJobRetriesSvc<T>
                     {
                         type Response = super::UpdateJobRetriesResponse;
                         type Future = BoxFuture<tonic::Response<Self::Response>, tonic::Status>;
@@ -1091,8 +1047,8 @@ pub mod server {
                     }
                     let inner = self.inner.clone();
                     let fut = async move {
-                        let method = UpdateJobRetries(inner);
-                        let codec = tonic::codec::ProstCodec::new();
+                        let method = UpdateJobRetriesSvc(inner);
+                        let codec = tonic::codec::ProstCodec::default();
                         let mut grpc = tonic::server::Grpc::new(codec);
                         let res = grpc.unary(method, req).await;
                         Ok(res)
@@ -1108,5 +1064,14 @@ pub mod server {
                 }),
             }
         }
+    }
+    impl<T: Gateway> Clone for GatewayServer<T> {
+        fn clone(&self) -> Self {
+            let inner = self.inner.clone();
+            Self { inner }
+        }
+    }
+    impl<T: Gateway> tonic::transport::ServiceName for GatewayServer<T> {
+        const NAME: &'static str = "gateway_protocol.Gateway";
     }
 }

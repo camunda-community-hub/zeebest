@@ -17,8 +17,8 @@ async fn main() {
         "simple-process",
         WorkflowVersion::Latest,
     )
-        .variables(&place_order)
-        .unwrap();
+    .variables(&place_order)
+    .unwrap();
     let result = client.create_workflow_instance(workflow_instance).await;
     println!("create workflow result: {:?}", result);
 }

@@ -327,7 +327,6 @@ service Gateway {
   /*
     Iterates through all known partitions round-robin and activates up to the requested
     maximum and streams them back to the client as they are activated.
-
     Errors:
      INVALID_ARGUMENT:
       - type is blank (empty string, null)
@@ -340,7 +339,6 @@ service Gateway {
 
   /*
     Cancels a running workflow instance
-
     Errors:
       NOT_FOUND:
         - no workflow instance exists with the given key
@@ -350,12 +348,10 @@ service Gateway {
 
   /*
     Completes a job with the given variables, which allows completing the associated service task.
-
     Errors:
       NOT_FOUND:
         - no job exists with the given job key. Note that since jobs are removed once completed,
           it could be that this job did exist at some point.
-
       FAILED_PRECONDITION:
         - the job was marked as failed. In that case, the related incident must be resolved before
           the job can be activated again and completed.
@@ -369,17 +365,14 @@ service Gateway {
     DeployWorkflow), or using the BPMN process ID and a version. Pass -1 as the version to use the
     latest deployed version. Note that only workflows with none start events can be started through
     this command.
-
     Errors:
       NOT_FOUND:
         - no workflow with the given key exists (if workflowKey was given)
         - no workflow with the given process ID exists (if bpmnProcessId was given but version was -1)
         - no workflow with the given process ID and version exists (if both bpmnProcessId and version were given)
-
       FAILED_PRECONDITION:
         - the workflow definition does not contain a none start event; only workflows with none
           start event can be started manually.
-
       INVALID_ARGUMENT:
         - the given variables argument is not a valid JSON document; it is expected to be a valid
           JSON document where the root node is an object.
@@ -390,7 +383,6 @@ service Gateway {
   /*
     Deploys one or more workflows to Zeebe. Note that this is an atomic call,
     i.e. either all workflows are deployed, or none of them are.
-
     Errors:
       INVALID_ARGUMENT:
         - no resources given.
@@ -407,11 +399,9 @@ service Gateway {
     activatable again, and a worker could try again to process it. If it is zero or negative however,
     an incident will be raised, tagged with the given errorMessage, and the job will not be
     activatable until the incident is resolved.
-
     Errors:
       NOT_FOUND:
         - no job was found with the given key
-
       FAILED_PRECONDITION:
         - the job was not activated
         - the job is already in a failed state, i.e. ran out of retries
@@ -422,7 +412,6 @@ service Gateway {
   /*
     Publishes a single message. Messages are published to specific partitions computed from their
     correlation keys.
-
     Errors:
       ALREADY_EXISTS:
         - a message with the same ID was previously published (and is still alive)
@@ -434,7 +423,6 @@ service Gateway {
     Resolves a given incident. This simply marks the incident as resolved; most likely a call to
     UpdateJobRetries or SetVariables will be necessary to actually resolve the
     problem, following by this call.
-
     Errors:
       NOT_FOUND:
         - no incident with the given key exists
@@ -445,7 +433,6 @@ service Gateway {
   /*
     Updates all the variables of a particular scope (e.g. workflow instance, flow element instance)
     from the given JSON document.
-
     Errors:
       NOT_FOUND:
         - no element with the given elementInstanceKey exists
@@ -465,11 +452,9 @@ service Gateway {
   /*
     Updates the number of retries a job has left. This is mostly useful for jobs that have run out of
     retries, should the underlying problem be solved.
-
     Errors:
       NOT_FOUND:
         - no job exists with the given key
-
       INVALID_ARGUMENT:
         - retries is not greater than 0
    */

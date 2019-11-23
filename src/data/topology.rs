@@ -8,7 +8,7 @@ pub struct Topology {
 }
 
 impl Topology {
-    pub fn new(topology_response: gateway::TopologyResponse) -> Topology {
+    pub fn from_raw(topology_response: gateway::TopologyResponse) -> Topology {
         Self {
             brokers: topology_response
                 .brokers

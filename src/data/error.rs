@@ -1,3 +1,5 @@
+use std::fmt::Debug;
+
 #[derive(Debug, Fail)]
 pub enum Error {
     #[fail(display = "Gateway Error. {:?}", _0)]
@@ -25,4 +27,36 @@ pub enum Error {
     JobError(String),
     #[fail(display = "Json Payload Serialization Error. {:?}", _0)]
     JsonError(serde_json::error::Error),
+    #[fail(display = "Std IO Error. {:?}", _0)]
+    StdIoError(std::io::Error),
+    #[fail(display = "Invalid Cloud Token.")]
+    InvalidCloudToken,
+    #[fail(display = "Tonic Error: {:?}", _0)]
+    TonicError(tonic::transport::Error),
+    #[fail(display = "Surf Error. {:?}", _0)]
+    SurfError(Box<dyn std::error::Error + Send + Sync + 'static>),
+}
+
+impl From<std::io::Error> for Error {
+    fn from(e: std::io::Error) -> Self {
+        Error::StdIoError(e)
+    }
+}
+
+impl From<serde_json::error::Error> for Error {
+    fn from(e: serde_json::error::Error) -> Self {
+        Error::JsonError(e)
+    }
+}
+
+impl From<tonic::transport::Error> for Error {
+    fn from(e: tonic::transport::Error) -> Self {
+        Error::TonicError(e)
+    }
+}
+
+impl From<Box<dyn std::error::Error + Send + Sync + 'static>> for Error {
+    fn from(e: Box<dyn std::error::Error + Send + Sync + 'static>) -> Self {
+        Error::SurfError(e)
+    }
 }

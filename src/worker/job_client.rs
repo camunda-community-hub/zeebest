@@ -3,7 +3,6 @@ use futures::{Future, FutureExt};
 use std::pin::Pin;
 use std::sync::{Arc, RwLock};
 
-
 pub trait JobStatusReporter {
     fn complete(
         &mut self,

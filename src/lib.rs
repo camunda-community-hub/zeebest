@@ -12,6 +12,11 @@ extern crate failure;
 extern crate tonic;
 #[macro_use]
 extern crate futures;
+#[macro_use]
+extern crate async_std;
+#[macro_use]
+extern crate serde_derive;
+
 mod client;
 mod data;
 mod worker;

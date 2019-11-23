@@ -11,7 +11,6 @@ pub use job_client::JobClient;
 pub use job_client::Reporter;
 pub use job_handler::JobHandler;
 
-
 /// An option that describes what the job worker should do if if the job handler panics.
 #[derive(Clone, Copy, Debug, PartialEq, Eq, Hash)]
 pub enum PanicOption {

@@ -5,6 +5,7 @@ use atomic_counter::{AtomicCounter, RelaxedCounter};
 
 use futures::prelude::*;
 
+use runtime::spawn;
 use std::sync::Arc;
 use std::time::Duration;
 use structopt::StructOpt;
@@ -65,23 +66,30 @@ async fn main() {
 
     match opt {
         Opt::DeployWorkflow => {
-            client.deploy_bpmn_workflow(
-                "order-process",
-                include_bytes!("../examples/order-process.bpmn").to_vec(),
-            ).await.unwrap();
+            client
+                .deploy_bpmn_workflow(
+                    "order-process",
+                    include_bytes!("../examples/order-process.bpmn").to_vec(),
+                )
+                .await
+                .unwrap();
         }
         Opt::PlaceOrder { count } => {
             for _ in 0..count {
-                client.create_workflow_instance(
-                    WorkflowInstance::workflow_instance_with_bpmn_process(
-                        "order-process",
-                        WorkflowVersion::Latest,
-                    ),
-                ).await.unwrap();
+                client
+                    .create_workflow_instance(
+                        WorkflowInstance::workflow_instance_with_bpmn_process(
+                            "order-process",
+                            WorkflowVersion::Latest,
+                        ),
+                    )
+                    .await
+                    .unwrap();
             }
         }
         Opt::NotifyPaymentReceived { order_id, cost } => {
-            client.publish_message(
+            client
+                .publish_message(
                     PublishMessage::new(
                         "payment-received",
                         order_id.to_string().as_str(),
@@ -90,7 +98,9 @@ async fn main() {
                     )
                     .variables(&Payment { order_value: cost })
                     .unwrap(),
-                ).await.unwrap();
+                )
+                .await
+                .unwrap();
         }
         Opt::ProcessJobs => {
             let order_id_counter = Arc::new(RelaxedCounter::new(0));
@@ -108,7 +118,7 @@ async fn main() {
                 futures::future::ready(job_result).boxed()
             };
 
-            let _initiate_payment_job = zeebest::JobWorker::new(
+            let initiate_payment_job = zeebest::JobWorker::new(
                 "rusty-worker".to_string(),
                 "initiate-payment".to_string(),
                 Duration::from_secs(3).as_secs() as _,
@@ -118,7 +128,7 @@ async fn main() {
                 initial_payment_handler,
             );
 
-            let _ship_without_insurance_job = zeebest::JobWorker::new(
+            let ship_without_insurance_job = zeebest::JobWorker::new(
                 "rusty-worker".to_string(),
                 "ship-without-insurance".to_string(),
                 Duration::from_secs(3).as_secs() as _,
@@ -128,7 +138,7 @@ async fn main() {
                 |_| futures::future::ready(JobResult::Complete { variables: None }).boxed(),
             );
 
-            let _ship_with_insurance_job = zeebest::JobWorker::new(
+            let ship_with_insurance_job = zeebest::JobWorker::new(
                 "rusty-worker".to_string(),
                 "ship-with-insurance".to_string(),
                 Duration::from_secs(3).as_secs() as _,
@@ -138,18 +148,15 @@ async fn main() {
                 |_| futures::future::ready(JobResult::Complete { variables: None }).boxed(),
             );
 
-//            let interval = tokio::timer::Interval::new_interval(Duration::from_secs(4));
-//
-//            let f = interval.compat().for_each(|_| {
-//                let s1 = initiate_payment_job.clone().activate_and_process_jobs();
-//                let s2 = ship_with_insurance_job.clone().activate_and_process_jobs();
-//                let s3 = ship_without_insurance_job
-//                    .clone()
-//                    .activate_and_process_jobs();
-//                futures::future::join3(s1, s2, s3).then(|_| futures::future::ready(()))
-//            });
-//
-//            futures::executor::block_on(f);
+            let mut interval = runtime::time::Interval::new(Duration::from_secs(4));
+            while let Some(_) = interval.next().await {
+                let f1 = initiate_payment_job.clone().activate_and_process_jobs();
+                let f2 = ship_with_insurance_job.clone().activate_and_process_jobs();
+                let f3 = ship_without_insurance_job
+                    .clone()
+                    .activate_and_process_jobs();
+                futures::future::join3(f1, f2, f3).await;
+            }
         }
     }
 }
