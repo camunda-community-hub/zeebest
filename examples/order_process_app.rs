@@ -5,11 +5,10 @@ use atomic_counter::{AtomicCounter, RelaxedCounter};
 
 use futures::prelude::*;
 
-use runtime::spawn;
 use std::sync::Arc;
 use std::time::Duration;
 use structopt::StructOpt;
-use zeebest::{Client, JobResult, PanicOption, PublishMessage, WorkflowInstance, WorkflowVersion};
+use zeebest::{JobResult, PanicOption, PublishMessage, WorkflowInstance, WorkflowVersion};
 
 #[derive(StructOpt, Debug)]
 #[structopt(
@@ -58,9 +57,16 @@ struct Payment {
     pub order_value: f32,
 }
 
-#[runtime::main]
+#[tokio::main]
 async fn main() {
-    let client = Client::new("127.0.0.1:26500").expect("Could not connect to broker.");
+    let uri: http::Uri = "http://127.0.0.1:26500"
+        .parse::<http::Uri>()
+        .unwrap();
+    let client: zeebest::Client = zeebest::Client::builder()
+        .uri(uri)
+        .connect()
+        .await
+        .unwrap();
 
     let opt = Opt::from_args();
 

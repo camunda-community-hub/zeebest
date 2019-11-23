@@ -1,7 +1,7 @@
 #[macro_use]
 extern crate serde_derive;
 
-use zeebest::{Client, WorkflowInstance, WorkflowVersion};
+use zeebest::{WorkflowInstance, WorkflowVersion};
 
 #[derive(Serialize)]
 struct PlaceOrder {
@@ -9,9 +9,17 @@ struct PlaceOrder {
     pub order_id: i32,
 }
 
-#[runtime::main]
+#[tokio::main]
 async fn main() {
-    let client = Client::new("127.0.0.1:26500").unwrap();
+    let uri: http::Uri = "http://127.0.0.1:26500"
+        .parse::<http::Uri>()
+        .unwrap();
+    let client: zeebest::Client = zeebest::Client::builder()
+        .uri(uri)
+        .connect()
+        .await
+        .unwrap();
+
     let place_order = PlaceOrder { order_id: 10 };
     let workflow_instance = WorkflowInstance::workflow_instance_with_bpmn_process(
         "simple-process",

@@ -10,7 +10,14 @@ struct Payment {
 
 #[runtime::main]
 async fn main() {
-    let client = Client::new("127.0.0.1:26500").unwrap();
+    let uri: http::Uri = "http://127.0.0.1:26500"
+        .parse::<http::Uri>()
+        .unwrap();
+    let client: zeebest::Client = zeebest::Client::builder()
+        .uri(uri)
+        .connect()
+        .await
+        .unwrap();
 
     let payment = Payment {
         total_charged: 25.95,
