@@ -1,16 +1,16 @@
 #[macro_use]
 extern crate serde_derive;
 
-use atomic_counter::{AtomicCounter, RelaxedCounter};
+use atomic_counter::{AtomicCounter};
 
 use futures::prelude::*;
 
 use std::time::Duration;
 use structopt::StructOpt;
-use zeebest::{ Error};
+
 use zeebest::gateway::{DeployWorkflowRequest, WorkflowRequestObject, CreateWorkflowInstanceRequest, PublishMessageRequest, ActivateJobsRequest};
 use zeebest::gateway::workflow_request_object::ResourceType;
-use zeebest::gateway::client::GatewayClient;
+
 use tower::Service;
 use futures::task::Context;
 use futures::{Poll, FutureExt};
@@ -32,7 +32,7 @@ impl Service<ActivatedJobs> for JustOne {
     type Error = MyError;
     type Future = Pin<Box<dyn Future<Output=Result<Self::Response, Self::Error>>>>;
 
-    fn poll_ready(&mut self, cx: &mut Context<'_>) -> Poll<Result<(), Self::Error>> {
+    fn poll_ready(&mut self, _cx: &mut Context<'_>) -> Poll<Result<(), Self::Error>> {
         unimplemented!()
     }
 
@@ -169,10 +169,10 @@ async fn main() {
                 while let Some(activate_jobs_result) = activate_jobs_response.next().await  {
                     match activate_jobs_result {
                         Ok(activate_jobs) => {
-                            let jobs = activate_jobs.jobs;
+                            let _jobs = activate_jobs.jobs;
 
                         },
-                        Err(e) => {
+                        Err(_e) => {
 //                            let _e = Error::TonicError(e);
                         }
                     }
