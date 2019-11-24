@@ -1,7 +1,7 @@
 #[macro_use]
 extern crate serde_derive;
 
-use zeebest::{WorkflowInstance, WorkflowVersion};
+use zeebest::gateway::{CreateWorkflowInstanceRequest};
 
 #[derive(Serialize)]
 struct PlaceOrder {
@@ -14,19 +14,20 @@ async fn main() {
     let uri: http::Uri = "http://127.0.0.1:26500"
         .parse::<http::Uri>()
         .unwrap();
-    let client: zeebest::Client = zeebest::Client::builder()
-        .uri(uri)
+    let mut client = zeebest::Client::builder(uri)
         .connect()
         .await
         .unwrap();
 
     let place_order = PlaceOrder { order_id: 10 };
-    let workflow_instance = WorkflowInstance::workflow_instance_with_bpmn_process(
-        "simple-process",
-        WorkflowVersion::Latest,
-    )
-    .variables(&place_order)
-    .unwrap();
-    let result = client.create_workflow_instance(workflow_instance).await;
+
+    let create_workflow_instance_request = CreateWorkflowInstanceRequest {
+        workflow_key: 0,
+        bpmn_process_id: "simple-process".to_string(),
+        version: -1,
+        variables: serde_json::to_string(&place_order).unwrap()
+    };
+
+    let result = client.create_workflow_instance(create_workflow_instance_request).await.unwrap();
     println!("create workflow result: {:?}", result);
 }

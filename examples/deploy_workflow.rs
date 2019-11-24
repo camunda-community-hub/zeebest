@@ -1,17 +1,26 @@
+use zeebest::gateway::{DeployWorkflowRequest, WorkflowRequestObject, workflow_request_object::ResourceType};
+
 #[tokio::main]
 async fn main() {
     let uri: http::Uri = "http://127.0.0.1:26500"
         .parse::<http::Uri>()
         .unwrap();
 
-    let client: zeebest::Client = zeebest::Client::builder()
-        .uri(uri)
+    let mut client = zeebest::Client::builder(uri)
         .connect()
         .await
         .unwrap();
 
+    let deploy_workflow_request = DeployWorkflowRequest {
+        workflows: vec![WorkflowRequestObject {
+            name: "simple-process".to_string(),
+            definition: SIMPLE_PROCESS_XML.into(),
+            r#type: ResourceType::Bpmn as i32,
+        }]
+    };
+
     let result = client
-        .deploy_bpmn_workflow("simple-process", SIMPLE_PROCESS_XML.into())
+        .deploy_workflow(deploy_workflow_request)
         .await
         .unwrap();
 

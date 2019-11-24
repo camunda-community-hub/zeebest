@@ -11,7 +11,7 @@ pub struct ClientBuilder {
 }
 
 impl ClientBuilder {
-    pub async fn connect(&self) -> Result<Client, Error> {
+    pub async fn connect(&self) -> Result<crate::gateway::client::GatewayClient<tonic::transport::Channel>, Error> {
         let uri: http::Uri = self.uri.clone().expect("URI is required");
         let mut endpoint = tonic::transport::Channel::builder(uri.clone());
 
@@ -42,10 +42,7 @@ impl ClientBuilder {
         }
         let internal_channel: tonic::transport::Channel = endpoint.connect().await?;
         let internal_client = crate::gateway::client::GatewayClient::new(internal_channel);
-        let internal_client = Arc::new(async_std::sync::RwLock::new(internal_client));
-        Ok(Client {
-            internal_client
-        })
+        Ok(internal_client)
     }
 
     pub fn camunda_cloud_token_provider(

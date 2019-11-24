@@ -20,8 +20,10 @@ pub struct Client {
 
 impl Client {
     /// Construct a new `Client` that connects to a broker with `host` and `port`.
-    pub fn builder() -> ClientBuilder {
-        Default::default()
+    pub fn builder(uri: http::Uri) -> ClientBuilder {
+        let mut builder = Default::default();
+        builder.uri = Some(uri);
+        builder
     }
 
     /// Get the topology. The returned struct is similar to what is printed when running `zbctl status`.
