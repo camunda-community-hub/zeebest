@@ -2298,6 +2298,7 @@ dependencies = [
  "tokio 0.2.0-alpha.6 (registry+https://github.com/rust-lang/crates.io-index)",
  "tonic 0.1.0-alpha.6 (registry+https://github.com/rust-lang/crates.io-index)",
  "tonic-build 0.1.0-alpha.6 (registry+https://github.com/rust-lang/crates.io-index)",
+ "tower 0.3.0-alpha.2 (registry+https://github.com/rust-lang/crates.io-index)",
  "webpki 0.21.0 (registry+https://github.com/rust-lang/crates.io-index)",
  "webpki-roots 0.18.0 (registry+https://github.com/rust-lang/crates.io-index)",
 ]

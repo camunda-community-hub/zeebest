@@ -23,7 +23,7 @@ async fn main() {
         total_charged: 25.95,
     };
 
-    let request = PublishMessageRequest {
+    let public_message_request = PublishMessageRequest {
         name: "payment-confirmed".to_string(),
         correlation_key: "10".to_string(),
         time_to_live: 10000,
@@ -31,6 +31,6 @@ async fn main() {
         variables: serde_json::to_string(&payment).unwrap(),
     };
 
-    client.publish_message(request).await.unwrap();
+    client.publish_message(public_message_request).await.unwrap();
     println!("published message");
 }

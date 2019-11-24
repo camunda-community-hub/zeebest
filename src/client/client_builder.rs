@@ -1,12 +1,11 @@
 use tonic::codegen::http;
-use crate::client::{ client::Client, camunda_cloud_token_provider::{ CloudToken, CamundaCloudTokenProvider } };
+use crate::client::{ camunda_cloud_token_provider::{ CloudToken, CamundaCloudTokenProvider } };
 use crate::Error;
 use tonic::transport::ClientTlsConfig;
-use async_std::sync::Arc;
 
 #[derive(Default)]
 pub struct ClientBuilder {
-    uri: Option<http::Uri>,
+    pub(crate) uri: Option<http::Uri>,
     token_provider: Option<CamundaCloudTokenProvider>,
 }
 

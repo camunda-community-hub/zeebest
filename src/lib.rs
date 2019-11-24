@@ -14,9 +14,9 @@ extern crate tonic;
 extern crate serde_derive;
 
 mod client;
-mod data;
+mod error;
 mod worker;
 
 pub use client::*;
-pub use data::client_data::*;
+pub use error::*;
 pub use worker::*;
