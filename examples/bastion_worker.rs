@@ -48,29 +48,6 @@ use serde::Serialize;
 )]
 enum Opt {
     #[structopt(
-        name = "deploy",
-        about = "Deploy the workflow on the broker. You probably only need to do this once."
-    )]
-    DeployWorkflow,
-    #[structopt(
-        name = "place-order",
-        about = "Place a new order. This starts a workflow instance."
-    )]
-    PlaceOrder {
-        #[structopt(short = "c", long = "count")]
-        count: i32,
-    },
-    #[structopt(
-        name = "notify-payment-received",
-        about = "Indicate that the order was processed and there is now a cost for the order."
-    )]
-    NotifyPaymentReceived {
-        #[structopt(short = "i", long = "order-id")]
-        order_id: i32,
-        #[structopt(short = "c", long = "cost")]
-        cost: f32,
-    },
-    #[structopt(
         name = "process-jobs",
         about = "Process all of the jobs on an interval. Will run forever. Print job results."
     )]
@@ -102,51 +79,6 @@ async fn main() {
     let opt = Opt::from_args();
 
     match opt {
-        Opt::DeployWorkflow => {
-            let deploy_workflow_request = DeployWorkflowRequest {
-                workflows: vec![WorkflowRequestObject {
-                    name: "order-process".to_string(),
-                    definition: include_bytes!("../examples/order-process.bpmn").to_vec(),
-                    r#type: ResourceType::Bpmn as i32,
-                }]
-            };
-
-            client
-                .deploy_workflow(deploy_workflow_request)
-                .await
-                .unwrap();
-        }
-        Opt::PlaceOrder { count } => {
-            let create_workflow_instance_request= CreateWorkflowInstanceRequest {
-                workflow_key: 0,
-                bpmn_process_id: "order-process".to_string(),
-                version: -1,
-                variables: "".to_string()
-            };
-
-            for _ in 0..count {
-                let create_workflow_instance_request= create_workflow_instance_request.clone();
-                client
-                    .create_workflow_instance(create_workflow_instance_request)
-                    .await
-                    .unwrap();
-            }
-        }
-        Opt::NotifyPaymentReceived { order_id, cost } => {
-
-            let public_message_request = PublishMessageRequest {
-                name: "payment-received".to_string(),
-                correlation_key: order_id.to_string(),
-                time_to_live: 10000,
-                message_id: "messageId".to_string(),
-                variables: serde_json::to_string(&Payment { order_value: cost }).unwrap(),
-            };
-
-            client
-                .publish_message(public_message_request)
-                .await
-                .unwrap();
-        }
         Opt::ProcessJobs => {
             Bastion::init();
             do_bastion(1);
