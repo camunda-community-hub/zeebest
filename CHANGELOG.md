@@ -5,6 +5,17 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ## [Unreleased]
+Project Abandoned.
+### Postmortem
+Things that went good: :tada:
+- Learned a lot about Rust and Cargo 
+- Experimented with cool tools: Zeebe, Protobufs
+- Project vision was good
+
+Things that went bad: :collision:
+- Rust futures have been painful to work with  
+- Lots of toil work in futures-runtime compatibility - zeebest should work on all runtimes
+- Maintainer lost interest and works on different projects now
 
 ## [0.20.0] - 2019-09-21
 Lots of big changes in this release! New futures and breaking API change.

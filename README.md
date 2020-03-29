@@ -1,4 +1,7 @@
-# the zeebest client [![docs.rs](https://docs.rs/zeebest/badge.svg)](https://docs.rs/zeebest) [![CircleCI](https://circleci.com/gh/xmclark/zeebest.svg?style=svg)](https://circleci.com/gh/xmclark/zeebest)
+# the zeebest client [![docs.rs](https://docs.rs/zeebest/badge.svg)](https://docs.rs/zeebest) [![CircleCI](https://circleci.com/gh/xmclark/zeebest.svg?style=svg)](https://circleci.com/gh/xmclark/zeebest) [![Project Status: Abandoned – Initial development has started, but there has not yet been a stable, usable release; the project has been abandoned and the author(s) do not intend on continuing development.](https://www.repostatus.org/badges/latest/abandoned.svg)](https://www.repostatus.org/#abandoned)[![Maintainers Wanted](https://img.shields.io/badge/maintainers-wanted-blue.svg)](https://github.com/pickhardt/maintainers-wanted)
+
+__This project is no longer maintained. New maintainers are welcome.__
+
 
 This is an unofficial Rust client for [zeebe][zeebe]. Zeebe is a cool workflow orchestrator for microservices. 
 Get started by by spinning up a zeebe broker locally and deploy a workflow with: 
