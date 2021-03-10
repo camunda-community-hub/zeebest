@@ -1,4 +1,9 @@
-# the zeebest client [![docs.rs](https://docs.rs/zeebest/badge.svg)](https://docs.rs/zeebest) [![CircleCI](https://circleci.com/gh/xmclark/zeebest.svg?style=svg)](https://circleci.com/gh/xmclark/zeebest) [![Project Status: Abandoned – Initial development has started, but there has not yet been a stable, usable release; the project has been abandoned and the author(s) do not intend on continuing development.](https://www.repostatus.org/badges/latest/abandoned.svg)](https://www.repostatus.org/#abandoned)[![Maintainers Wanted](https://img.shields.io/badge/maintainers-wanted-blue.svg)](https://github.com/pickhardt/maintainers-wanted)
+# the zeebest client 
+[![Camunda Community Extension](https://img.shields.io/badge/Community%20Extension-An%20open%20source%20community%20maintained%20project-FF4700)](https://github.com/camunda-community-hub/community) 
+[![docs.rs](https://docs.rs/zeebest/badge.svg)](https://docs.rs/zeebest) 
+[![CircleCI](https://circleci.com/gh/xmclark/zeebest.svg?style=svg)](https://circleci.com/gh/xmclark/zeebest) 
+[![Lifecycle Status: Abandoned – Initial development has started, but there has not yet been a stable, usable release; the project has been abandoned and the author(s) do not intend on continuing development.](https://img.shields.io/badge/Lifecycle-Abandoned-lightgrey)](https://github.com/camunda-community-hub/community/blob/main/extension-lifecycle.md) 
+[![Maintainer Needed](https://img.shields.io/badge/Lifecycle-Needs%20Maintainer%20-ff69b4)](https://github.com/camunda-community-hub/community/blob/main/extension-lifecycle.md)
 
 __This project is no longer maintained. New maintainers are welcome.__
 
