@@ -3,7 +3,7 @@
 [![docs.rs](https://docs.rs/zeebest/badge.svg)](https://docs.rs/zeebest) 
 [![CircleCI](https://circleci.com/gh/xmclark/zeebest.svg?style=svg)](https://circleci.com/gh/xmclark/zeebest) 
 [![Lifecycle Status: Abandoned – Initial development has started, but there has not yet been a stable, usable release; the project has been abandoned and the author(s) do not intend on continuing development.](https://img.shields.io/badge/Lifecycle-Abandoned-lightgrey)](https://github.com/camunda-community-hub/community/blob/main/extension-lifecycle.md) 
-[![Maintainer Needed](https://img.shields.io/badge/Lifecycle-Needs%20Maintainer%20-ff69b4)](https://github.com/camunda-community-hub/community/blob/main/extension-lifecycle.md)
+[![Maintainer Needed](https://img.shields.io/badge/Lifecycle-Needs%20Maintainer%20-ff69b4)](https://github.com/camunda-community-hub/community/blob/main/extension-lifecycle.md) ![Compatible with: Camunda Platform 8](https://img.shields.io/badge/Compatible%20with-Camunda%20Platform%208-0072Ce)
 
 __This project is no longer maintained. New maintainers are welcome.__
 
