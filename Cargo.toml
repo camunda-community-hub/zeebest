@@ -23,6 +23,6 @@ protoc-rust-grpc = "0.6.1"
 
 [dev-dependencies]
 atomic-counter = "1.0.1"
-serde_derive = "1.0.91"
+serde_derive = "1.0.193"
 structopt = "0.2.16"
 tokio = "0.1"
